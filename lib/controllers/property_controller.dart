@@ -1,0 +1,276 @@
+import 'package:get/get.dart';
+import 'package:house_renting/services/property_service.dart';
+
+class Property {
+  final String id;
+  final String title;
+  final String location;
+  final String price;
+  final double rating;
+  final bool isVerified;
+  final bool isFeatured;
+  final bool isFavorited; // Added field
+  final int beds;
+  final int baths;
+  final int sqft;
+  final List<String> tags;
+  final String date;
+  final String imageUrl;
+  final String description;
+  final Map<String, dynamic> owner;
+  final Map<String, dynamic> details;
+
+  Property({
+    required this.id,
+    required this.title,
+    required this.location,
+    required this.price,
+    required this.rating,
+    required this.isVerified,
+    required this.isFeatured,
+    this.isFavorited = false, // Default to false
+    required this.beds,
+    required this.baths,
+    required this.sqft,
+    required this.tags,
+    required this.date,
+    required this.imageUrl,
+    this.description = 'A handy description.',
+    this.owner = const {
+      'name': 'Rakib',
+      'role': 'Property Owner',
+      'image':
+          'https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?ixlib=rb-1.2.1&auto=format&fit=crop&w=100&q=80',
+    },
+    this.details = const {
+      'Property Type': 'Apartment',
+      'Floor': '6th',
+      'Furnished': 'Yes',
+      'Parking': 'Available',
+      'Rental Type': 'Family',
+    },
+  });
+  factory Property.fromJson(Map<String, dynamic> json) {
+    // Helper to safely parse numbers to string/int/double
+    String toStringOr(dynamic val, String fallback) =>
+        val?.toString() ?? fallback;
+    int toIntOr(dynamic val, int fallback) =>
+        int.tryParse(val?.toString() ?? '') ?? fallback;
+
+    final ownerData = json['landlord_data'] as Map<String, dynamic>? ?? {};
+
+    return Property(
+      id: toStringOr(json['id'], ''),
+      title: json['property_name'] ?? 'No Title',
+      location: json['location'] ?? 'No Location',
+      price: 'Tk ${toStringOr(json['rent'], '0')}',
+      rating: 0.0, // Not provided in API
+      isVerified: json['is_verified'] == true || json['is_verified'] == 1,
+      isFeatured: json['featured'] == true || json['featured'] == 1,
+      beds: toIntOr(json['bedrooms'], 0),
+      baths: toIntOr(json['bathrooms'], 0),
+      // Handle size carefully
+      sqft: toIntOr(json['size'], 0),
+      tags: [
+        if (json['property_type'] != null) json['property_type'].toString(),
+        if (json['rental_type'] != null) json['rental_type'].toString(),
+        if (json['status'] != null) json['status'].toString(),
+      ],
+      date: json['posted_date'] ?? 'Recently',
+      imageUrl:
+          'https://images.unsplash.com/photo-1512917774080-9991f1c4c750?ixlib=rb-1.2.1&auto=format&fit=crop&w=1350&q=80',
+      description: json['description'] ?? '',
+      owner: {
+        'name': ownerData['name'] ?? 'Unknown',
+        'role': ownerData['role'] ?? 'Landlord',
+        'image':
+            'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?ixlib=rb-1.2.1&auto=format&fit=crop&w=100&q=80',
+        'phone': ownerData['phone'],
+        'email': ownerData['email'],
+      },
+      details: {
+        'Property Type': json['property_type']?.toString() ?? 'Apartment',
+        'Floor': json['floor']?.toString() ?? 'N/A',
+        'Furnished': (json['furnished'] == true) ? 'Yes' : 'No',
+        'Parking': (json['parking'] == true) ? 'Available' : 'None',
+        'Rental Type': json['rental_type']?.toString() ?? 'Any',
+      },
+      isFavorited:
+          json['favourited'] == true ||
+          json['favourited'] == 1 ||
+          json['favourited'] == '1' ||
+          json['favourited'] == 'true',
+    );
+  }
+  Property copyWith({
+    String? id,
+    String? title,
+    String? location,
+    String? price,
+    double? rating,
+    bool? isVerified,
+    bool? isFeatured,
+    bool? isFavorited,
+    int? beds,
+    int? baths,
+    int? sqft,
+    List<String>? tags,
+    String? date,
+    String? imageUrl,
+    String? description,
+    Map<String, dynamic>? owner,
+    Map<String, dynamic>? details,
+  }) {
+    return Property(
+      id: id ?? this.id,
+      title: title ?? this.title,
+      location: location ?? this.location,
+      price: price ?? this.price,
+      rating: rating ?? this.rating,
+      isVerified: isVerified ?? this.isVerified,
+      isFeatured: isFeatured ?? this.isFeatured,
+      isFavorited: isFavorited ?? this.isFavorited,
+      beds: beds ?? this.beds,
+      baths: baths ?? this.baths,
+      sqft: sqft ?? this.sqft,
+      tags: tags ?? this.tags,
+      date: date ?? this.date,
+      imageUrl: imageUrl ?? this.imageUrl,
+      description: description ?? this.description,
+      owner: owner ?? this.owner,
+      details: details ?? this.details,
+    );
+  }
+} // End of Property class
+
+class PropertyController extends GetxController {
+  final RxList<Property> properties = <Property>[].obs;
+  final RxBool isLoading = true.obs;
+  final RxString errorMessage = ''.obs;
+  final Rxn<Property> currentProperty = Rxn<Property>();
+  final RxSet<String> favoriteLoadingIds = <String>{}.obs;
+
+  // Filter State
+  final RxString filterLocation = 'Any'.obs;
+  final RxString filterPropertyType = 'Any'.obs; // Apartment, House, etc
+  final RxString filterRentalType = 'Any'.obs; // Family, Sublet, etc
+  final RxInt filterBedrooms = 0.obs;
+  final RxDouble filterMinRent = 0.0.obs;
+  final RxDouble filterMaxRent = 0.0.obs;
+
+  @override
+  void onInit() {
+    super.onInit();
+    // Fetch properties on init
+    fetchProperties();
+  }
+
+  Future<void> fetchProperties() async {
+    try {
+      isLoading(true);
+      errorMessage('');
+
+      final fetchedProperties = await PropertyService().getProperties(
+        location: filterLocation.value,
+        propertyType: filterPropertyType.value,
+        rentalType: filterRentalType.value,
+        bedrooms: filterBedrooms.value,
+        minRent: filterMinRent.value > 0 ? filterMinRent.value : null,
+        maxRent: filterMaxRent.value > 0 ? filterMaxRent.value : null,
+      );
+
+      properties.assignAll(fetchedProperties);
+    } catch (e) {
+      errorMessage(e.toString());
+      print(e);
+    } finally {
+      isLoading(false);
+    }
+  }
+
+  void updateFilters({
+    String? location,
+    String? propertyType,
+    String? rentalType,
+    int? bedrooms,
+    double? minRent,
+    double? maxRent,
+  }) {
+    if (location != null) filterLocation.value = location;
+    if (propertyType != null) filterPropertyType.value = propertyType;
+    if (rentalType != null) filterRentalType.value = rentalType;
+    if (bedrooms != null) filterBedrooms.value = bedrooms;
+    if (minRent != null) filterMinRent.value = minRent;
+    if (maxRent != null) filterMaxRent.value = maxRent;
+
+    fetchProperties();
+  }
+
+  void clearFilters() {
+    filterLocation.value = 'Any';
+    filterPropertyType.value = 'Any';
+    filterRentalType.value = 'Any';
+    filterBedrooms.value = 0;
+    filterMinRent.value = 0.0;
+    filterMaxRent.value = 0.0;
+    fetchProperties();
+  }
+
+  Future<void> fetchPropertyDetails(String id) async {
+    try {
+      currentProperty.value = null; // Clear previous
+      final property = await PropertyService().getPropertyDetails(id);
+      currentProperty.value = property;
+    } catch (e) {
+      Get.snackbar('Error', 'Failed to load property details');
+      print(e);
+    }
+  }
+
+  Future<void> toggleFavorite(Property property) async {
+    if (favoriteLoadingIds.contains(property.id)) return; // Prevent double tap
+
+    favoriteLoadingIds.add(property.id);
+
+    // Optimistic Update
+    final newStatus = !property.isFavorited;
+    final updatedProperty = property.copyWith(isFavorited: newStatus);
+
+    // Update in list
+    final index = properties.indexWhere((p) => p.id == property.id);
+    if (index != -1) {
+      properties[index] = updatedProperty;
+      properties.refresh(); // Trigger Obx
+    }
+
+    // Update currentProperty if it matches
+    if (currentProperty.value?.id == property.id) {
+      currentProperty.value = updatedProperty;
+    }
+
+    try {
+      if (newStatus) {
+        await PropertyService().addToFavorites(property.id);
+      } else {
+        await PropertyService().removeFromFavorites(property.id);
+      }
+    } catch (e) {
+      // Revert on failure
+      if (index != -1) {
+        properties[index] = property;
+        properties.refresh();
+      }
+      if (currentProperty.value?.id == property.id) {
+        currentProperty.value = property;
+      }
+      print('Error toggling favorite: $e');
+      Get.snackbar('Error', 'Failed to update favorite status');
+    } finally {
+      favoriteLoadingIds.remove(property.id);
+    }
+  }
+
+  Property? getPropertyById(String id) {
+    return properties.firstWhereOrNull((p) => p.id == id);
+  }
+}
