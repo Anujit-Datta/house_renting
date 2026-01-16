@@ -26,9 +26,11 @@ class _LoginFormState extends State<LoginForm> {
     super.didUpdateWidget(oldWidget);
     if (widget.role != oldWidget.role) {
       if (widget.role == 'Landlord') {
-        _emailController.text = 'landlord@example.com';
+        _emailController.text = 'rakib12@gmail.com';
+        _passwordController.text = '123456@';
       } else if (widget.role == 'Tenant') {
         _emailController.text = 'afreen@gmail.com';
+        _passwordController.text = '123456@';
       }
     }
   }

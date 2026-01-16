@@ -1,5 +1,7 @@
 import 'package:get/get.dart';
 import 'package:house_renting/controllers/property_controller.dart';
+import 'package:house_renting/services/property_service.dart';
+import 'package:house_renting/controllers/auth_controller.dart';
 
 class LandlordController extends GetxController {
   static LandlordController get to => Get.find();
@@ -9,6 +11,7 @@ class LandlordController extends GetxController {
 
   // Observable properties list
   final myProperties = <Property>[].obs;
+  final isLoading = false.obs;
 
   @override
   void onInit() {
@@ -16,86 +19,55 @@ class LandlordController extends GetxController {
     fetchDashboardData();
   }
 
-  void fetchDashboardData() {
-    // Dummy Data for Dashboard Stats
-    stats.value = {
-      'Total Properties': '3',
-      'Total Rentals': '0',
-      'Active Rentals': '0',
-      'Monthly Revenue': 'Tk 0',
-    };
+  Future<void> fetchDashboardData() async {
+    try {
+      isLoading.value = true;
 
-    // Dummy Data for My Properties
-    myProperties.value = [
-      Property(
-        id: '1',
-        title: 'Modern Apartment in Gulshan',
-        location: 'Gulshan 2, Dhaka',
-        price: 'Tk 25,000/mo',
-        rating: 4.8,
-        imageUrl:
-            'https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?ixlib=rb-1.2.1&auto=format&fit=crop&w=400&q=80',
-        beds: 3,
-        baths: 2,
-        sqft: 1500,
-        tags: ['Apartment', 'Modern'],
-        date: '2 days ago',
-        description: 'Luxury apartment with all modern amenities.',
-        isVerified: true,
-        isFeatured: true,
-        owner: {
-          'name': 'You',
-          'image':
-              'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?ixlib=rb-1.2.1&auto=format&fit=crop&w=100&q=80',
-          'role': 'Landlord',
-        },
-      ),
-      Property(
-        id: '2',
-        title: 'Cozy Studio in Banani',
-        location: 'Banani, Dhaka',
-        price: 'Tk 15,000/mo',
-        rating: 4.5,
-        imageUrl:
-            'https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?ixlib=rb-1.2.1&auto=format&fit=crop&w=400&q=80',
-        beds: 1,
-        baths: 1,
-        sqft: 600,
-        tags: ['Studio', 'Cozy'],
-        date: '5 days ago',
-        description: 'Perfect for singles or couples.',
-        isVerified: true,
-        isFeatured: false,
-        owner: {
-          'name': 'You',
-          'image':
-              'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?ixlib=rb-1.2.1&auto=format&fit=crop&w=100&q=80',
-          'role': 'Landlord',
-        },
-      ),
-      Property(
-        id: '3',
-        title: 'Spacious Family Home',
-        location: 'Uttara Sector 7',
-        price: 'Tk 35,000/mo',
-        rating: 4.7,
-        imageUrl:
-            'https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?ixlib=rb-1.2.1&auto=format&fit=crop&w=400&q=80',
-        beds: 4,
-        baths: 3,
-        sqft: 2200,
-        tags: ['House', 'Family'],
-        date: '1 week ago',
-        description: 'Large family home near park.',
-        isVerified: true,
-        isFeatured: false,
-        owner: {
-          'name': 'You',
-          'image':
-              'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?ixlib=rb-1.2.1&auto=format&fit=crop&w=100&q=80',
-          'role': 'Landlord',
-        },
-      ),
-    ];
+      // 1. Fetch all properties
+      // Note: Ideally API would provide /my-properties endpoint. behavior
+      // We are fetching all and filtering client-side for now as per available API.
+      final allProperties = await PropertyService().getProperties();
+
+      // 2. Filter for current user
+      final currentUserEmail = Get.find<AuthController>().currentUser?.email;
+
+      if (currentUserEmail != null) {
+        final userProperties = allProperties.where((p) {
+          // Check 'email' in owner map
+          return p.owner['email'] == currentUserEmail;
+        }).toList();
+
+        myProperties.assignAll(userProperties);
+      } else {
+        // Fallback or empty if not logged in (shouldn't happen on this screen)
+        myProperties.clear();
+      }
+
+      // 3. Update Stats
+      stats.value = {
+        'Total Properties': myProperties.length.toString(),
+        'Total Rentals': '0', // Placeholder
+        'Active Rentals': '0', // Placeholder
+        'Monthly Revenue': 'Tk ${calculateRevenue()}',
+      };
+    } catch (e) {
+      print('Error fetching landlord data: $e');
+    } finally {
+      isLoading.value = false;
+    }
+  }
+
+  String calculateRevenue() {
+    double total = 0;
+    for (var p in myProperties) {
+      // Extract price logic, removing "Tk " and "/mo" and commas
+      final cleanPrice = p.price
+          .replaceAll('Tk ', '')
+          .replaceAll('/mo', '')
+          .replaceAll(',', '')
+          .trim();
+      total += double.tryParse(cleanPrice) ?? 0;
+    }
+    return total.toStringAsFixed(0);
   }
 }

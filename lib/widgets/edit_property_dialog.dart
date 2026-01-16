@@ -54,8 +54,17 @@ class _EditPropertyDialogState extends State<EditPropertyDialog> {
       text: 'Latitude: 23.746466, Longitude: 90.376015',
     );
 
-    _selectedPropertyType =
-        widget.property.details['Property Type'] ?? 'Apartment';
+    // Validate Property Type
+    String incomingType =
+        widget.property.details['Property Type']?.toString() ?? 'Apartment';
+    const allowedTypes = ['Apartment', 'House', 'Duplex', 'Flat', 'Villa'];
+    if (allowedTypes.contains(incomingType)) {
+      _selectedPropertyType = incomingType;
+    } else {
+      // Fallback if the API returns an ID (e.g. "0") or unknown type
+      _selectedPropertyType = 'Apartment';
+    }
+
     _featured = widget.property.isFeatured;
     // Simple logic associated with 'Parking' in 'Available' for demo
     _parking =
