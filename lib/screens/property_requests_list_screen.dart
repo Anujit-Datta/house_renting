@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:house_renting/controllers/rental_requests_controller.dart';
+import 'package:house_renting/models.dart';
 import 'package:house_renting/widgets/custom_app_bar.dart';
 
 class PropertyRequestsListScreen extends StatelessWidget {
@@ -9,7 +10,7 @@ class PropertyRequestsListScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final controller = Get.find<RentalRequestsController>();
+    final controller = Get.find<RentalRequestController>();
 
     return Scaffold(
       appBar: CustomAppBar(
@@ -17,18 +18,15 @@ class PropertyRequestsListScreen extends StatelessWidget {
         actions: const [],
       ),
       body: Obx(() {
-        if (controller.tenantRequests.isEmpty) {
+        if (controller.requests.isEmpty) {
           return const Center(child: Text('No requests for this property.'));
         }
         return ListView.separated(
           padding: const EdgeInsets.all(16),
-          itemCount: controller.tenantRequests.length,
+          itemCount: controller.requests.length,
           separatorBuilder: (context, index) => const SizedBox(height: 16),
           itemBuilder: (context, index) {
-            return _buildRequestCard(
-              controller.tenantRequests[index],
-              controller,
-            );
+            return _buildRequestCard(controller.requests[index], controller);
           },
         );
       }),
@@ -36,10 +34,10 @@ class PropertyRequestsListScreen extends StatelessWidget {
   }
 
   Widget _buildRequestCard(
-    Map<String, dynamic> request,
-    RentalRequestsController controller,
+    RentalRequest request,
+    RentalRequestController controller,
   ) {
-    final bool isPending = request['status'] == 'Pending';
+    final bool isPending = request.status.toLowerCase() == 'pending';
 
     return Card(
       elevation: 2,
@@ -54,7 +52,9 @@ class PropertyRequestsListScreen extends StatelessWidget {
               children: [
                 CircleAvatar(
                   radius: 24,
-                  backgroundImage: NetworkImage(request['imageUrl']),
+                  backgroundImage: const NetworkImage(
+                    'https://via.placeholder.com/150',
+                  ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
@@ -62,14 +62,14 @@ class PropertyRequestsListScreen extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        request['tenantName'],
+                        'Unknown Tenant', // Placeholder - implement tenant name
                         style: const TextStyle(
                           fontWeight: FontWeight.bold,
                           fontSize: 16,
                         ),
                       ),
                       Text(
-                        'Sent on ${request['date']}',
+                        'Sent on 2024-01-01', // Placeholder - implement date
                         style: TextStyle(
                           color: Colors.grey.shade600,
                           fontSize: 12,
@@ -84,16 +84,26 @@ class PropertyRequestsListScreen extends StatelessWidget {
                     vertical: 4,
                   ),
                   decoration: BoxDecoration(
-                    color: _getStatusColor(request['status']).withOpacity(0.1),
+                    color: Color(
+                      int.parse(request.statusColor.replaceFirst('#', '0xFF')),
+                    ).withOpacity(0.1),
                     borderRadius: BorderRadius.circular(4),
                     border: Border.all(
-                      color: _getStatusColor(request['status']),
+                      color: Color(
+                        int.parse(
+                          request.statusColor.replaceFirst('#', '0xFF'),
+                        ),
+                      ),
                     ),
                   ),
                   child: Text(
-                    request['status'],
+                    request.statusText,
                     style: TextStyle(
-                      color: _getStatusColor(request['status']),
+                      color: Color(
+                        int.parse(
+                          request.statusColor.replaceFirst('#', '0xFF'),
+                        ),
+                      ),
                       fontWeight: FontWeight.bold,
                       fontSize: 12,
                     ),
@@ -107,12 +117,12 @@ class PropertyRequestsListScreen extends StatelessWidget {
             Row(
               children: [
                 Expanded(
-                  child: _buildInfoItem('Occupation', request['occupation']),
+                  child: _buildInfoItem('Occupation', 'Unknown'), // Placeholder
                 ),
                 Expanded(
                   child: _buildInfoItem(
                     'Monthly Income',
-                    'Tk ${request['income']}',
+                    'Tk 0', // Placeholder
                   ),
                 ),
               ],
@@ -123,7 +133,7 @@ class PropertyRequestsListScreen extends StatelessWidget {
                 Expanded(
                   child: _buildInfoItem(
                     'Family Members',
-                    '${request['familyMembers']} Persons',
+                    '0 Persons', // Placeholder
                   ),
                 ),
               ],
@@ -136,7 +146,7 @@ class PropertyRequestsListScreen extends StatelessWidget {
             ),
             const SizedBox(height: 4),
             Text(
-              request['message'],
+              'No message available', // Placeholder - implement message
               style: TextStyle(color: Colors.grey.shade800, fontSize: 14),
             ),
 
@@ -148,7 +158,8 @@ class PropertyRequestsListScreen extends StatelessWidget {
                 children: [
                   Expanded(
                     child: OutlinedButton(
-                      onPressed: () => controller.declineRequest(request['id']),
+                      onPressed: () =>
+                          _handleDeclineRequest(request, controller),
                       style: OutlinedButton.styleFrom(
                         side: const BorderSide(color: Colors.red),
                         foregroundColor: Colors.red,
@@ -163,7 +174,8 @@ class PropertyRequestsListScreen extends StatelessWidget {
                   const SizedBox(width: 16),
                   Expanded(
                     child: ElevatedButton(
-                      onPressed: () => controller.acceptRequest(request['id']),
+                      onPressed: () =>
+                          _handleAcceptRequest(request, controller),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const Color(0xFF27AE60),
                         foregroundColor: Colors.white,
@@ -197,14 +209,29 @@ class PropertyRequestsListScreen extends StatelessWidget {
     );
   }
 
-  Color _getStatusColor(String status) {
-    switch (status) {
-      case 'Approved':
-        return const Color(0xFF27AE60);
-      case 'Rejected':
-        return const Color(0xFFC0392B);
-      default:
-        return const Color(0xFFF39C12);
+  void _handleAcceptRequest(
+    RentalRequest request,
+    RentalRequestController controller,
+  ) {
+    try {
+      final updatedRequest = request.copyWith(status: 'accepted');
+      controller.updateRequest(updatedRequest);
+      Get.snackbar('Success', 'Request accepted successfully');
+    } catch (e) {
+      Get.snackbar('Error', 'Failed to accept request: ${e.toString()}');
+    }
+  }
+
+  void _handleDeclineRequest(
+    RentalRequest request,
+    RentalRequestController controller,
+  ) {
+    try {
+      final updatedRequest = request.copyWith(status: 'rejected');
+      controller.updateRequest(updatedRequest);
+      Get.snackbar('Success', 'Request declined successfully');
+    } catch (e) {
+      Get.snackbar('Error', 'Failed to decline request: ${e.toString()}');
     }
   }
 }

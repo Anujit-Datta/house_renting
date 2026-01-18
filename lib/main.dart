@@ -5,6 +5,13 @@ import 'package:house_renting/controllers/tenant_controller.dart';
 import 'package:house_renting/controllers/landlord_controller.dart';
 import 'package:house_renting/controllers/property_controller.dart';
 import 'package:house_renting/controllers/theme_controller.dart';
+import 'package:house_renting/controllers/rental_requests_controller.dart';
+import 'package:house_renting/controllers/contract_controller.dart';
+import 'package:house_renting/controllers/payment_controller.dart';
+import 'package:house_renting/controllers/message_controller.dart';
+import 'package:house_renting/controllers/notification_controller.dart';
+import 'package:house_renting/controllers/support_ticket_controller.dart';
+import 'package:house_renting/controllers/landlord_wallet_controller.dart';
 import 'package:house_renting/screens/guest_home_screen.dart';
 import 'package:house_renting/screens/landlord_home_screen.dart';
 import 'package:house_renting/screens/tenant_home_screen.dart';
@@ -17,6 +24,13 @@ void main() {
   Get.put(TenantController());
   Get.put(LandlordController());
   Get.put(PropertyController());
+  Get.put(RentalRequestController());
+  Get.put(ContractController());
+  Get.put(PaymentController());
+  Get.put(MessageController());
+  Get.put(NotificationController());
+  Get.put(SupportTicketController());
+  Get.put(LandlordWalletController());
 
   runApp(const MyApp());
 }

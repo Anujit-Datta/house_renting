@@ -1,19 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:house_renting/controllers/rental_requests_controller.dart';
+import 'package:house_renting/controllers/contract_controller.dart';
 import 'package:house_renting/models.dart';
 import 'package:house_renting/widgets/custom_app_bar.dart';
 
-class RentalRequestsScreen extends StatelessWidget {
-  const RentalRequestsScreen({super.key});
+class ContractScreen extends StatelessWidget {
+  const ContractScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
-    final controller = Get.put(RentalRequestController());
+    final controller = Get.put(ContractController());
 
     return Scaffold(
       appBar: CustomAppBar(
-        title: 'Rental Requests',
+        title: 'Contracts',
         actions: const [], // No actions needed for this page
       ),
       body: Obx(
@@ -28,13 +28,13 @@ class RentalRequestsScreen extends StatelessWidget {
                     const Row(
                       children: [
                         Icon(
-                          Icons.mark_email_unread,
+                          Icons.description,
                           color: Color(0xFF2C3E50),
                           size: 28,
                         ),
                         SizedBox(width: 12),
                         Text(
-                          'Rental Requests',
+                          'Contracts',
                           style: TextStyle(
                             fontSize: 24,
                             fontWeight: FontWeight.bold,
@@ -45,7 +45,7 @@ class RentalRequestsScreen extends StatelessWidget {
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      'Manage tenant rental requests for your properties',
+                      'Manage your rental contracts',
                       style: TextStyle(
                         color: Colors.grey.shade600,
                         fontSize: 14,
@@ -53,121 +53,22 @@ class RentalRequestsScreen extends StatelessWidget {
                     ),
                     const SizedBox(height: 24),
 
-                    // Stats Grid
-                    _buildStatsGrid(controller),
-                    const SizedBox(height: 32),
-
-                    // Requests List
-                    if (controller.requests.isEmpty)
+                    // Contract List
+                    if (controller.contracts.isEmpty)
                       _buildEmptyState()
                     else
                       ListView.builder(
                         shrinkWrap: true,
                         physics: const NeverScrollableScrollPhysics(),
-                        itemCount: controller.requests.length,
+                        itemCount: controller.contracts.length,
                         itemBuilder: (context, index) {
-                          final request = controller.requests[index];
-                          return _buildRequestCard(request);
+                          final contract = controller.contracts[index];
+                          return _buildContractCard(contract, controller);
                         },
                       ),
                   ],
                 ),
               ),
-      ),
-    );
-  }
-
-  Widget _buildStatsGrid(RentalRequestController controller) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        // Adapt grid based on screen width if needed, but for now fixed 4 cols or scrollable
-        // For mobile, maybe 2x2. The design shows 4 in a row.
-        // Let's use a Wrap or GridView that adapts.
-        return GridView.count(
-          crossAxisCount: constraints.maxWidth > 600 ? 4 : 2,
-          crossAxisSpacing: 16,
-          mainAxisSpacing: 16,
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          childAspectRatio: 1.1,
-          children: [
-            _buildStatCard(
-              Icons.inbox,
-              controller.getTotalRequests().toString(),
-              'Total Requests',
-              const Color(0xFF2C3E50),
-              Colors.white,
-            ),
-            _buildStatCard(
-              Icons.access_time_filled,
-              controller.getPendingCount().toString(),
-              'Pending Requests',
-              const Color(0xFFF39C12),
-              Colors.white,
-            ),
-            _buildStatCard(
-              Icons.check_circle,
-              controller.getAcceptedCount().toString(),
-              'Approved Requests',
-              const Color(0xFF27AE60),
-              Colors.white,
-            ),
-            _buildStatCard(
-              Icons.business,
-              '5', // Placeholder - implement actual property count
-              'Properties with\nRequests',
-              Colors.blue.shade700,
-              Colors.white,
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-  Widget _buildStatCard(
-    IconData icon,
-    String value,
-    String label,
-    Color iconColor,
-    Color bgColor,
-  ) {
-    return Card(
-      elevation: 2,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-        side: BorderSide(
-          color: iconColor.withOpacity(0.5),
-          width: 1,
-        ), // Colored border left? Design has colored left border line style
-      ),
-      child: Container(
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(12),
-          border: Border(left: BorderSide(color: iconColor, width: 4)),
-        ),
-        padding: const EdgeInsets.all(12),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(icon, color: iconColor, size: 28),
-            const SizedBox(height: 8),
-            Text(
-              value,
-              style: const TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-                color: Colors.black87,
-              ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              label,
-              textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
-            ),
-          ],
-        ),
       ),
     );
   }
@@ -180,10 +81,14 @@ class RentalRequestsScreen extends StatelessWidget {
         padding: const EdgeInsets.all(32.0),
         child: Column(
           children: [
-            Icon(Icons.inbox_outlined, size: 64, color: Colors.grey.shade400),
+            Icon(
+              Icons.description_outlined,
+              size: 64,
+              color: Colors.grey.shade400,
+            ),
             const SizedBox(height: 16),
             Text(
-              'No Rental Requests',
+              'No Contracts Found',
               style: TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
@@ -192,7 +97,7 @@ class RentalRequestsScreen extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             Text(
-              'No rental requests found for your properties yet.',
+              'No contracts found for your properties yet.',
               style: TextStyle(color: Colors.grey.shade600),
               textAlign: TextAlign.center,
             ),
@@ -202,7 +107,7 @@ class RentalRequestsScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildRequestCard(RentalRequest request) {
+  Widget _buildContractCard(Contract contract, ContractController controller) {
     return Card(
       elevation: 2,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -212,22 +117,18 @@ class RentalRequestsScreen extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Request Header
+            // Contract Header
             Row(
               children: [
                 Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
                     color: Color(
-                      int.parse(request.statusColor.replaceFirst('#', '0xFF')),
+                      int.parse(contract.statusColor.replaceFirst('#', '0xFF')),
                     ),
                     borderRadius: BorderRadius.circular(8),
                   ),
-                  child: Icon(
-                    Icons.request_page,
-                    color: Colors.white,
-                    size: 20,
-                  ),
+                  child: Icon(Icons.description, color: Colors.white, size: 20),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
@@ -235,7 +136,7 @@ class RentalRequestsScreen extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Unknown Property', // Placeholder - implement property relationship
+                        'Contract #${contract.contractId}',
                         style: const TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
@@ -243,7 +144,7 @@ class RentalRequestsScreen extends StatelessWidget {
                         ),
                       ),
                       Text(
-                        'Tenant: Unknown', // Placeholder - implement tenant relationship
+                        'Property: ${contract.property?['property_name'] ?? 'Unknown Property'}',
                         style: TextStyle(
                           color: Colors.grey.shade600,
                           fontSize: 14,
@@ -259,25 +160,25 @@ class RentalRequestsScreen extends StatelessWidget {
                   ),
                   decoration: BoxDecoration(
                     color: Color(
-                      int.parse(request.statusColor.replaceFirst('#', '0xFF')),
+                      int.parse(contract.statusColor.replaceFirst('#', '0xFF')),
                     ).withOpacity(0.1),
                     borderRadius: BorderRadius.circular(16),
                     border: Border.all(
                       color: Color(
                         int.parse(
-                          request.statusColor.replaceFirst('#', '0xFF'),
+                          contract.statusColor.replaceFirst('#', '0xFF'),
                         ),
                       ),
                     ),
                   ),
                   child: Text(
-                    request.statusText,
+                    contract.statusText,
                     style: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.bold,
                       color: Color(
                         int.parse(
-                          request.statusColor.replaceFirst('#', '0xFF'),
+                          contract.statusColor.replaceFirst('#', '0xFF'),
                         ),
                       ),
                     ),
@@ -294,7 +195,7 @@ class RentalRequestsScreen extends StatelessWidget {
                 const SizedBox(width: 4),
                 Expanded(
                   child: Text(
-                    'Unknown Location', // Placeholder - implement property relationship
+                    contract.property?['location'] ?? 'Unknown Location',
                     style: const TextStyle(color: Colors.grey, fontSize: 12),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
@@ -304,20 +205,20 @@ class RentalRequestsScreen extends StatelessWidget {
             ),
             const SizedBox(height: 8),
 
-            // Rental Terms
+            // Contract Terms
             Row(
               children: [
                 const Icon(Icons.calendar_today, size: 16, color: Colors.grey),
                 const SizedBox(width: 4),
                 Text(
-                  'Move-in: Unknown', // Placeholder - implement move-in date
+                  'From: ${contract.formattedStartDate}',
                   style: const TextStyle(color: Colors.grey, fontSize: 12),
                 ),
                 const SizedBox(width: 16),
-                const Icon(Icons.access_time, size: 16, color: Colors.grey),
+                const Icon(Icons.date_range, size: 16, color: Colors.grey),
                 const SizedBox(width: 4),
                 Text(
-                  '12 months', // Placeholder - implement rental duration
+                  'To: ${contract.formattedEndDate}',
                   style: const TextStyle(color: Colors.grey, fontSize: 12),
                 ),
               ],
@@ -342,7 +243,7 @@ class RentalRequestsScreen extends StatelessWidget {
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          'Tk 0', // Placeholder - implement formatted monthly rent
+                          contract.formattedMonthlyRent,
                           style: const TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.bold,
@@ -369,7 +270,7 @@ class RentalRequestsScreen extends StatelessWidget {
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          'Tk 0', // Placeholder - implement formatted security deposit
+                          contract.formattedSecurityDeposit,
                           style: const TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.bold,
@@ -384,37 +285,97 @@ class RentalRequestsScreen extends StatelessWidget {
             ),
             const SizedBox(height: 16),
 
+            // Signatures Status
+            Row(
+              children: [
+                Expanded(
+                  child: _buildSignatureStatus(
+                    'Tenant',
+                    contract.isTenantSigned,
+                    Icons.person,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: _buildSignatureStatus(
+                    'Landlord',
+                    contract.isLandlordSigned,
+                    Icons.business,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+
             // Action Buttons
-            if (request.status.toLowerCase() == 'pending')
+            if (!contract.isFullySigned)
               Row(
                 children: [
-                  Expanded(
-                    child: ElevatedButton(
-                      onPressed: () => _handleApproveRequest(request),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF27AE60),
-                        foregroundColor: Colors.white,
+                  if (!contract.isTenantSigned && _isUserTenant(contract))
+                    Expanded(
+                      child: ElevatedButton(
+                        onPressed: () =>
+                            _handleSignContract(contract, controller),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF27AE60),
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                        ),
+                        child: const Text('Sign Contract'),
+                      ),
+                    )
+                  else if (!contract.isLandlordSigned &&
+                      _isUserLandlord(contract))
+                    Expanded(
+                      child: ElevatedButton(
+                        onPressed: () =>
+                            _handleSignContract(contract, controller),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF27AE60),
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                        ),
+                        child: const Text('Sign Contract'),
+                      ),
+                    )
+                  else
+                    Expanded(
+                      child: Container(
                         padding: const EdgeInsets.symmetric(vertical: 12),
-                        shape: RoundedRectangleBorder(
+                        decoration: BoxDecoration(
+                          color: Colors.grey.withOpacity(0.1),
                           borderRadius: BorderRadius.circular(8),
                         ),
+                        child: Text(
+                          'Waiting for ${!contract.isTenantSigned ? 'Tenant' : 'Landlord'} signature',
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.grey,
+                          ),
+                        ),
                       ),
-                      child: const Text('Approve'),
                     ),
-                  ),
                   const SizedBox(width: 8),
                   Expanded(
-                    child: ElevatedButton(
-                      onPressed: () => _handleRejectRequest(request),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFFE74C3C),
-                        foregroundColor: Colors.white,
+                    child: OutlinedButton(
+                      onPressed: () => _handleViewDetails(contract, controller),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: const Color(0xFF2C3E50),
+                        side: const BorderSide(color: Color(0xFF2C3E50)),
                         padding: const EdgeInsets.symmetric(vertical: 12),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(8),
                         ),
                       ),
-                      child: const Text('Reject'),
+                      child: const Text('View Details'),
                     ),
                   ),
                 ],
@@ -424,17 +385,28 @@ class RentalRequestsScreen extends StatelessWidget {
                 width: double.infinity,
                 padding: const EdgeInsets.symmetric(vertical: 12),
                 decoration: BoxDecoration(
-                  color: Colors.grey.withOpacity(0.1),
+                  color: Colors.green.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: Text(
-                  request.statusText,
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.grey,
-                  ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(
+                      Icons.check_circle,
+                      color: Color(0xFF27AE60),
+                      size: 16,
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Fully Signed - ${contract.statusText}',
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF27AE60),
+                      ),
+                    ),
+                  ],
                 ),
               ),
           ],
@@ -443,27 +415,87 @@ class RentalRequestsScreen extends StatelessWidget {
     );
   }
 
-  void _handleApproveRequest(RentalRequest request) async {
+  Widget _buildSignatureStatus(String role, bool isSigned, IconData icon) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: isSigned
+            ? Colors.green.withOpacity(0.1)
+            : Colors.grey.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: isSigned ? const Color(0xFF27AE60) : Colors.grey,
+        ),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            icon,
+            color: isSigned ? const Color(0xFF27AE60) : Colors.grey,
+            size: 16,
+          ),
+          const SizedBox(width: 8),
+          Text(
+            role,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.bold,
+              color: isSigned ? const Color(0xFF27AE60) : Colors.grey,
+            ),
+          ),
+          const SizedBox(width: 8),
+          Icon(
+            isSigned ? Icons.check_circle : Icons.circle_outlined,
+            color: isSigned ? const Color(0xFF27AE60) : Colors.grey,
+            size: 16,
+          ),
+        ],
+      ),
+    );
+  }
+
+  bool _isUserTenant(Contract contract) {
+    // This would check the current user's role from AuthController
+    // For now, return false - implement proper role checking
+    return false;
+  }
+
+  bool _isUserLandlord(Contract contract) {
+    // This would check the current user's role from AuthController
+    // For now, return false - implement proper role checking
+    return false;
+  }
+
+  void _handleSignContract(
+    Contract contract,
+    ContractController controller,
+  ) async {
     try {
-      // Simple update for now - implement proper approval logic
-      final updatedRequest = request.copyWith(status: 'accepted');
-      final controller = Get.find<RentalRequestController>();
-      controller.updateRequest(updatedRequest);
-      Get.snackbar('Success', 'Request approved successfully');
+      // In a real app, this would open a signature pad
+      final signature =
+          'placeholder_signature_${DateTime.now().millisecondsSinceEpoch}';
+
+      await controller.signContract(contract.contractId, signature);
+      Get.snackbar('Success', 'Contract signed successfully');
     } catch (e) {
-      Get.snackbar('Error', 'Failed to approve request: ${e.toString()}');
+      Get.snackbar('Error', 'Failed to sign contract: ${e.toString()}');
     }
   }
 
-  void _handleRejectRequest(RentalRequest request) async {
+  void _handleViewDetails(
+    Contract contract,
+    ContractController controller,
+  ) async {
     try {
-      // Simple update for now - implement proper rejection logic
-      final updatedRequest = request.copyWith(status: 'rejected');
-      final controller = Get.find<RentalRequestController>();
-      controller.updateRequest(updatedRequest);
-      Get.snackbar('Success', 'Request rejected successfully');
+      await controller.fetchContractDetails(contract.contractId);
+
+      // Navigate to contract details screen
+      // Get.to(() => ContractDetailsScreen(contract: contract));
+
+      // For now, show snackbar
+      Get.snackbar('Contract Details', 'Contract ID: ${contract.contractId}');
     } catch (e) {
-      Get.snackbar('Error', 'Failed to reject request: ${e.toString()}');
+      Get.snackbar('Error', 'Failed to load contract details: ${e.toString()}');
     }
   }
 }

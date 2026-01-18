@@ -1,8 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:house_renting/controllers/auth_controller.dart';
+import 'package:house_renting/controllers/rental_requests_controller.dart';
+import 'package:house_renting/controllers/property_controller.dart' show Property;
 
 class RentalApplicationDialog extends StatefulWidget {
-  const RentalApplicationDialog({super.key});
+  final String propertyId;
+  final Property property;
+
+  const RentalApplicationDialog({
+    super.key,
+    required this.propertyId,
+    required this.property,
+  });
 
   @override
   State<RentalApplicationDialog> createState() =>
@@ -10,11 +20,135 @@ class RentalApplicationDialog extends StatefulWidget {
 }
 
 class _RentalApplicationDialogState extends State<RentalApplicationDialog> {
+  // Controllers
+  late final TextEditingController _nameController;
+  late final TextEditingController _emailController;
+  late final TextEditingController _phoneController;
+  late final TextEditingController _addressController;
+  late final TextEditingController _occupantsController;
+  late final TextEditingController _occupationController;
+  late final TextEditingController _emergencyNameController;
+  late final TextEditingController _emergencyPhoneController;
+  late final TextEditingController _notesController;
+
   // Form State
-  String? _petStatus;
+  bool _hasPets = false;
   bool _termsAccepted = false;
   String? _paymentMethod;
   DateTime? _moveInDate;
+  bool _isSubmitting = false;
+
+  // Controllers
+  late final AuthController _authController;
+  late final RentalRequestController _rentalRequestController;
+
+  @override
+  void initState() {
+    super.initState();
+    _authController = Get.find<AuthController>();
+    _rentalRequestController = Get.find<RentalRequestController>();
+
+    // Initialize controllers with user data if available
+    final user = _authController.currentUser;
+    _nameController = TextEditingController(text: user?.name ?? '');
+    _emailController = TextEditingController(text: user?.email ?? '');
+    _phoneController = TextEditingController(text: user?.phone ?? '');
+    _addressController = TextEditingController(text: '');
+    _occupantsController = TextEditingController(text: '1');
+    _occupationController = TextEditingController(text: '');
+    _emergencyNameController = TextEditingController(text: '');
+    _emergencyPhoneController = TextEditingController(text: '');
+
+    _notesController = TextEditingController(text: '');
+  }
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _emailController.dispose();
+    _phoneController.dispose();
+    _addressController.dispose();
+    _occupantsController.dispose();
+    _occupationController.dispose();
+    _emergencyNameController.dispose();
+    _emergencyPhoneController.dispose();
+    _notesController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _submitApplication() async {
+    // Validation
+    if (_nameController.text.trim().isEmpty ||
+        _emailController.text.trim().isEmpty ||
+        _phoneController.text.trim().isEmpty ||
+        _addressController.text.trim().isEmpty ||
+        _occupantsController.text.trim().isEmpty ||
+        _occupationController.text.trim().isEmpty ||
+        _emergencyNameController.text.trim().isEmpty ||
+        _emergencyPhoneController.text.trim().isEmpty ||
+        _moveInDate == null ||
+        _paymentMethod == null ||
+        !_termsAccepted) {
+      Get.snackbar(
+        'Error',
+        'Please fill in all required fields and accept the terms.',
+        backgroundColor: Colors.red,
+        colorText: Colors.white,
+        snackPosition: SnackPosition.BOTTOM,
+      );
+      return;
+    }
+
+    setState(() => _isSubmitting = true);
+
+    try {
+      final requestData = {
+        'property_id': int.parse(widget.propertyId),
+        'move_in_date':
+            '${_moveInDate!.year}-${_moveInDate!.month.toString().padLeft(2, '0')}-${_moveInDate!.day.toString().padLeft(2, '0')}',
+        'payment_method': _paymentMethod,
+        'has_pets': _hasPets ? 'yes' : 'no',
+        'current_address': _addressController.text.trim(),
+        'num_occupants': int.parse(_occupantsController.text.trim()),
+        'occupation': _occupationController.text.trim(),
+        'emergency_contact': _emergencyNameController.text.trim(),
+        'emergency_phone': _emergencyPhoneController.text.trim(),
+        'notes': _notesController.text.trim().isEmpty
+            ? null
+            : _notesController.text.trim(),
+        'terms': true,
+      };
+
+      await _rentalRequestController.createRentalRequest(requestData);
+
+      if (mounted) {
+        Get.back();
+        Get.snackbar(
+          'Success',
+          'Application Submitted Successfully!',
+          backgroundColor: Colors.green,
+          colorText: Colors.white,
+          snackPosition: SnackPosition.BOTTOM,
+          duration: const Duration(seconds: 3),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        Get.snackbar(
+          'Error',
+          'Failed to submit application: ${e.toString()}',
+          backgroundColor: Colors.red,
+          colorText: Colors.white,
+          snackPosition: SnackPosition.BOTTOM,
+          duration: const Duration(seconds: 4),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isSubmitting = false);
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -84,10 +218,10 @@ class _RentalApplicationDialogState extends State<RentalApplicationDialog> {
                             size: 20,
                           ),
                           const SizedBox(width: 12),
-                          const Expanded(
+                          Expanded(
                             child: Text(
-                              'No specific flats listed. General rental application for entire property.',
-                              style: TextStyle(
+                              'Applying for: ${widget.property.title}\nLocation: ${widget.property.location}\nRent: ${widget.property.price}',
+                              style: const TextStyle(
                                 color: Color(0xFF2C3E50),
                                 fontSize: 13,
                               ),
@@ -102,48 +236,26 @@ class _RentalApplicationDialogState extends State<RentalApplicationDialog> {
                     _buildTextField(
                       'Full Name *',
                       'Full name as per NID',
-                      'Muttakin Hosen',
+                      _nameController,
                     ),
                     const SizedBox(height: 16),
                     _buildTextField(
                       'Email *',
                       'Valid email address',
-                      'redc22736@gmail.com',
-                    ),
-                    const SizedBox(height: 16),
-                    _buildTextField(
-                      'National ID (NID) *',
-                      '10, 13, or 17 digits',
+                      _emailController,
                     ),
                     const SizedBox(height: 16),
                     _buildTextField(
                       'Mobile Number *',
                       '11-digit mobile number',
-                      '+8801793607694',
+                      _phoneController,
                     ),
-
-                    const SizedBox(height: 24),
-                    _buildSectionHeader(Icons.location_on, 'Current Address'),
-                    _buildTwoColumnRow(
-                      _buildTextField(
-                        'House/Flat/Building *',
-                        'e.g., House 12, Flat 3A',
-                      ),
-                      _buildTextField('Road/Street *', 'e.g., Road 5, Mirpur'),
-                    ),
-                    _buildTwoColumnRow(
-                      _buildTextField(
-                        'Area/Locality *',
-                        'e.g., Dhanmondi, Gulshan',
-                      ),
-                      _buildTextField(
-                        'Thana/Upazila *',
-                        'e.g., Mirpur, Uttara',
-                      ),
-                    ),
-                    _buildTwoColumnRow(
-                      _buildTextField('District *', 'e.g., Dhaka, Chittagong'),
-                      _buildTextField('Postal Code *', 'e.g., 1216'),
+                    const SizedBox(height: 16),
+                    _buildTextField(
+                      'Current Address *',
+                      'Your current residential address',
+                      _addressController,
+                      maxLines: 2,
                     ),
 
                     const SizedBox(height: 24),
@@ -151,30 +263,32 @@ class _RentalApplicationDialogState extends State<RentalApplicationDialog> {
                     _buildTextField(
                       'Number of Occupants *',
                       'Total people living',
-                      '1',
+                      _occupantsController,
+                      keyboardType: TextInputType.number,
                     ),
                     const SizedBox(height: 16),
                     _buildTextField(
                       'Occupation *',
                       'Your profession',
-                      'Student/Professional/Business',
+                      _occupationController,
                     ),
                     const SizedBox(height: 16),
                     _buildTextField(
                       'Emergency Contact Name *',
                       'Family member or friend',
+                      _emergencyNameController,
                     ),
                     const SizedBox(height: 16),
                     _buildTextField(
                       'Emergency Mobile *',
                       'Emergency contact number',
-                      '01XXXXXXXXX',
+                      _emergencyPhoneController,
                     ),
 
                     const SizedBox(height: 24),
                     _buildSectionHeader(
                       Icons.calendar_today,
-                      'Move-in & Payment',
+                      'Move-in Date & Duration',
                     ),
                     Column(
                       children: [
@@ -244,25 +358,37 @@ class _RentalApplicationDialogState extends State<RentalApplicationDialog> {
                             ],
                           ),
                         ),
-                        const SizedBox(height: 16),
-                        _buildDropdown(
-                          label: 'Payment Method *',
-                          hint: 'Select Payment Method',
-                          items: ['Bank Transfer', 'bKash', 'Cash'],
-                          selectedValue: _paymentMethod,
-                          onChanged: (val) =>
-                              setState(() => _paymentMethod = val),
-                          subtext: 'Rent payment method',
-                        ),
                       ],
                     ),
                     const SizedBox(height: 16),
                     _buildDropdown(
-                      label: 'Do you have pets?',
-                      hint: 'No',
-                      items: ['No', 'Yes - Cat', 'Yes - Dog', 'Yes - Other'],
-                      selectedValue: _petStatus,
-                      onChanged: (val) => setState(() => _petStatus = val),
+                      label: 'Payment Method *',
+                      hint: 'Select Payment Method',
+                      items: const [
+                        'bank_transfer',
+                        'mobile_banking',
+                        'hand_cash',
+                        'check',
+                      ],
+                      selectedValue: _paymentMethod,
+                      onChanged: (val) =>
+                          setState(() => _paymentMethod = val),
+                      subtext: 'How will you pay rent?',
+                      itemLabels: const {
+                        'bank_transfer': 'Bank Transfer',
+                        'mobile_banking': 'Mobile Banking (bKash/Nagad)',
+                        'hand_cash': 'Hand Cash',
+                        'check': 'Check',
+                      },
+                    ),
+
+                    const SizedBox(height: 16),
+                    CheckboxListTile(
+                      title: const Text('I have pets'),
+                      value: _hasPets,
+                      onChanged: (val) => setState(() => _hasPets = val ?? false),
+                      contentPadding: EdgeInsets.zero,
+                      controlAffinity: ListTileControlAffinity.leading,
                     ),
 
                     const SizedBox(height: 24),
@@ -276,9 +402,10 @@ class _RentalApplicationDialogState extends State<RentalApplicationDialog> {
                             border: Border.all(color: Colors.grey.shade300),
                             borderRadius: BorderRadius.circular(8),
                           ),
-                          child: const TextField(
+                          child: TextField(
+                            controller: _notesController,
                             maxLines: 4,
-                            decoration: InputDecoration(
+                            decoration: const InputDecoration(
                               border: InputBorder.none,
                               hintText:
                                   'Any special requests or additional information...',
@@ -295,48 +422,6 @@ class _RentalApplicationDialogState extends State<RentalApplicationDialog> {
                           style: TextStyle(color: Colors.grey, fontSize: 11),
                         ),
                       ],
-                    ),
-
-                    const SizedBox(height: 24),
-                    _buildSectionHeader(
-                      Icons.upload_file,
-                      'Upload Documents (Optional)',
-                    ),
-                    Container(
-                      padding: const EdgeInsets.all(4),
-                      decoration: BoxDecoration(
-                        border: Border.all(color: Colors.grey.shade300),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Row(
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 16,
-                              vertical: 8,
-                            ),
-                            decoration: BoxDecoration(
-                              color: Colors.grey.shade200,
-                              borderRadius: BorderRadius.circular(6),
-                              border: Border.all(color: Colors.grey.shade400),
-                            ),
-                            child: const Text(
-                              'Choose Files',
-                              style: TextStyle(fontWeight: FontWeight.bold),
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          const Text(
-                            'No file chosen',
-                            style: TextStyle(color: Colors.grey),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    const Text(
-                      'NID, passport, or supporting documents (Max 5 files, 5MB each)',
-                      style: TextStyle(color: Colors.grey, fontSize: 11),
                     ),
 
                     const SizedBox(height: 24),
@@ -374,18 +459,19 @@ class _RentalApplicationDialogState extends State<RentalApplicationDialog> {
             Padding(
               padding: const EdgeInsets.all(24),
               child: ElevatedButton.icon(
-                onPressed: () {
-                  Get.back();
-                  Get.snackbar(
-                    'Success',
-                    'Application Submitted Successfully!',
-                    backgroundColor: Colors.green,
-                    colorText: Colors.white,
-                    snackPosition: SnackPosition.BOTTOM,
-                  );
-                },
-                icon: const Icon(Icons.send, size: 18),
-                label: const Text('Submit Application'),
+                onPressed: _isSubmitting ? null : _submitApplication,
+                icon: _isSubmitting
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          valueColor:
+                              AlwaysStoppedAnimation<Color>(Colors.white),
+                        ),
+                      )
+                    : const Icon(Icons.send, size: 18),
+                label: Text(_isSubmitting ? 'Submitting...' : 'Submit Application'),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF5E60CE),
                   foregroundColor: Colors.white,
@@ -426,29 +512,23 @@ class _RentalApplicationDialogState extends State<RentalApplicationDialog> {
     );
   }
 
-  Widget _buildTwoColumnRow(Widget child1, Widget child2) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 16),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Expanded(child: child1),
-          const SizedBox(width: 16),
-          Expanded(child: child2),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildTextField(String label, String hint, [String? initialValue]) {
+  Widget _buildTextField(
+    String label,
+    String hint,
+    TextEditingController controller, {
+    int maxLines = 1,
+    TextInputType? keyboardType,
+  }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _buildLabel(label),
         const SizedBox(height: 8),
         TextFormField(
-          initialValue: initialValue,
+          controller: controller,
           style: const TextStyle(fontSize: 14),
+          maxLines: maxLines,
+          keyboardType: keyboardType,
           decoration: InputDecoration(
             hintText: hint,
             hintStyle: const TextStyle(color: Colors.grey, fontSize: 14),
@@ -485,6 +565,7 @@ class _RentalApplicationDialogState extends State<RentalApplicationDialog> {
     required String? selectedValue,
     required Function(String?) onChanged,
     String? subtext,
+    Map<String, String>? itemLabels,
   }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -512,7 +593,10 @@ class _RentalApplicationDialogState extends State<RentalApplicationDialog> {
               items: items.map((String value) {
                 return DropdownMenuItem<String>(
                   value: value,
-                  child: Text(value, style: const TextStyle(fontSize: 14)),
+                  child: Text(
+                    itemLabels?[value] ?? value,
+                    style: const TextStyle(fontSize: 14),
+                  ),
                 );
               }).toList(),
               onChanged: (val) => onChanged(val),

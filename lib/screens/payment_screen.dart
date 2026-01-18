@@ -1,19 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:house_renting/controllers/rental_requests_controller.dart';
+import 'package:house_renting/controllers/payment_controller.dart';
 import 'package:house_renting/models.dart';
 import 'package:house_renting/widgets/custom_app_bar.dart';
 
-class RentalRequestsScreen extends StatelessWidget {
-  const RentalRequestsScreen({super.key});
+class PaymentScreen extends StatelessWidget {
+  const PaymentScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
-    final controller = Get.put(RentalRequestController());
+    final controller = Get.put(PaymentController());
 
     return Scaffold(
       appBar: CustomAppBar(
-        title: 'Rental Requests',
+        title: 'Payments',
         actions: const [], // No actions needed for this page
       ),
       body: Obx(
@@ -27,14 +27,10 @@ class RentalRequestsScreen extends StatelessWidget {
                     // Header
                     const Row(
                       children: [
-                        Icon(
-                          Icons.mark_email_unread,
-                          color: Color(0xFF2C3E50),
-                          size: 28,
-                        ),
+                        Icon(Icons.payment, color: Color(0xFF2C3E50), size: 28),
                         SizedBox(width: 12),
                         Text(
-                          'Rental Requests',
+                          'Payments',
                           style: TextStyle(
                             fontSize: 24,
                             fontWeight: FontWeight.bold,
@@ -45,7 +41,7 @@ class RentalRequestsScreen extends StatelessWidget {
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      'Manage tenant rental requests for your properties',
+                      'Manage your rental payments',
                       style: TextStyle(
                         color: Colors.grey.shade600,
                         fontSize: 14,
@@ -57,17 +53,17 @@ class RentalRequestsScreen extends StatelessWidget {
                     _buildStatsGrid(controller),
                     const SizedBox(height: 32),
 
-                    // Requests List
-                    if (controller.requests.isEmpty)
+                    // Payment List
+                    if (controller.payments.isEmpty)
                       _buildEmptyState()
                     else
                       ListView.builder(
                         shrinkWrap: true,
                         physics: const NeverScrollableScrollPhysics(),
-                        itemCount: controller.requests.length,
+                        itemCount: controller.payments.length,
                         itemBuilder: (context, index) {
-                          final request = controller.requests[index];
-                          return _buildRequestCard(request);
+                          final payment = controller.payments[index];
+                          return _buildPaymentCard(payment, controller);
                         },
                       ),
                   ],
@@ -77,14 +73,12 @@ class RentalRequestsScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildStatsGrid(RentalRequestController controller) {
+  Widget _buildStatsGrid(PaymentController controller) {
+    final stats = controller.paymentStats;
     return LayoutBuilder(
       builder: (context, constraints) {
-        // Adapt grid based on screen width if needed, but for now fixed 4 cols or scrollable
-        // For mobile, maybe 2x2. The design shows 4 in a row.
-        // Let's use a Wrap or GridView that adapts.
         return GridView.count(
-          crossAxisCount: constraints.maxWidth > 600 ? 4 : 2,
+          crossAxisCount: constraints.maxWidth > 600 ? 3 : 2,
           crossAxisSpacing: 16,
           mainAxisSpacing: 16,
           shrinkWrap: true,
@@ -92,30 +86,30 @@ class RentalRequestsScreen extends StatelessWidget {
           childAspectRatio: 1.1,
           children: [
             _buildStatCard(
-              Icons.inbox,
-              controller.getTotalRequests().toString(),
-              'Total Requests',
+              Icons.monetization_on,
+              controller.totalAmount.toStringAsFixed(0),
+              'Total Amount',
               const Color(0xFF2C3E50),
               Colors.white,
             ),
             _buildStatCard(
-              Icons.access_time_filled,
-              controller.getPendingCount().toString(),
-              'Pending Requests',
+              Icons.hourglass_top,
+              stats['Pending'].toString(),
+              'Pending',
               const Color(0xFFF39C12),
               Colors.white,
             ),
             _buildStatCard(
               Icons.check_circle,
-              controller.getAcceptedCount().toString(),
-              'Approved Requests',
+              stats['Confirmed'].toString(),
+              'Confirmed',
               const Color(0xFF27AE60),
               Colors.white,
             ),
             _buildStatCard(
-              Icons.business,
-              '5', // Placeholder - implement actual property count
-              'Properties with\nRequests',
+              Icons.receipt,
+              stats['With Receipt'].toString(),
+              'With Receipt',
               Colors.blue.shade700,
               Colors.white,
             ),
@@ -136,10 +130,7 @@ class RentalRequestsScreen extends StatelessWidget {
       elevation: 2,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
-        side: BorderSide(
-          color: iconColor.withOpacity(0.5),
-          width: 1,
-        ), // Colored border left? Design has colored left border line style
+        side: BorderSide(color: iconColor.withOpacity(0.5), width: 1),
       ),
       child: Container(
         decoration: BoxDecoration(
@@ -180,10 +171,10 @@ class RentalRequestsScreen extends StatelessWidget {
         padding: const EdgeInsets.all(32.0),
         child: Column(
           children: [
-            Icon(Icons.inbox_outlined, size: 64, color: Colors.grey.shade400),
+            Icon(Icons.payment_outlined, size: 64, color: Colors.grey.shade400),
             const SizedBox(height: 16),
             Text(
-              'No Rental Requests',
+              'No Payments Found',
               style: TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
@@ -192,7 +183,7 @@ class RentalRequestsScreen extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             Text(
-              'No rental requests found for your properties yet.',
+              'No payment records found for your properties yet.',
               style: TextStyle(color: Colors.grey.shade600),
               textAlign: TextAlign.center,
             ),
@@ -202,7 +193,7 @@ class RentalRequestsScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildRequestCard(RentalRequest request) {
+  Widget _buildPaymentCard(Payment payment, PaymentController controller) {
     return Card(
       elevation: 2,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -212,22 +203,18 @@ class RentalRequestsScreen extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Request Header
+            // Payment Header
             Row(
               children: [
                 Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
                     color: Color(
-                      int.parse(request.statusColor.replaceFirst('#', '0xFF')),
+                      int.parse(payment.statusColor.replaceFirst('#', '0xFF')),
                     ),
                     borderRadius: BorderRadius.circular(8),
                   ),
-                  child: Icon(
-                    Icons.request_page,
-                    color: Colors.white,
-                    size: 20,
-                  ),
+                  child: Icon(Icons.payment, color: Colors.white, size: 20),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
@@ -235,7 +222,7 @@ class RentalRequestsScreen extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Unknown Property', // Placeholder - implement property relationship
+                        'Unknown Property', // payment.property?['property_name'] - Need to implement property relationship
                         style: const TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
@@ -243,7 +230,7 @@ class RentalRequestsScreen extends StatelessWidget {
                         ),
                       ),
                       Text(
-                        'Tenant: Unknown', // Placeholder - implement tenant relationship
+                        'Payment - Online', // ${payment.formattedPaymentDate} - ${payment.paymentMethodText} - Need to implement these getters
                         style: TextStyle(
                           color: Colors.grey.shade600,
                           fontSize: 14,
@@ -259,25 +246,25 @@ class RentalRequestsScreen extends StatelessWidget {
                   ),
                   decoration: BoxDecoration(
                     color: Color(
-                      int.parse(request.statusColor.replaceFirst('#', '0xFF')),
+                      int.parse(payment.statusColor.replaceFirst('#', '0xFF')),
                     ).withOpacity(0.1),
                     borderRadius: BorderRadius.circular(16),
                     border: Border.all(
                       color: Color(
                         int.parse(
-                          request.statusColor.replaceFirst('#', '0xFF'),
+                          payment.statusColor.replaceFirst('#', '0xFF'),
                         ),
                       ),
                     ),
                   ),
                   child: Text(
-                    request.statusText,
+                    payment.statusText,
                     style: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.bold,
                       color: Color(
                         int.parse(
-                          request.statusColor.replaceFirst('#', '0xFF'),
+                          payment.statusColor.replaceFirst('#', '0xFF'),
                         ),
                       ),
                     ),
@@ -294,31 +281,11 @@ class RentalRequestsScreen extends StatelessWidget {
                 const SizedBox(width: 4),
                 Expanded(
                   child: Text(
-                    'Unknown Location', // Placeholder - implement property relationship
+                    payment.metadata?['location'] ?? 'Unknown Location',
                     style: const TextStyle(color: Colors.grey, fontSize: 12),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-
-            // Rental Terms
-            Row(
-              children: [
-                const Icon(Icons.calendar_today, size: 16, color: Colors.grey),
-                const SizedBox(width: 4),
-                Text(
-                  'Move-in: Unknown', // Placeholder - implement move-in date
-                  style: const TextStyle(color: Colors.grey, fontSize: 12),
-                ),
-                const SizedBox(width: 16),
-                const Icon(Icons.access_time, size: 16, color: Colors.grey),
-                const SizedBox(width: 4),
-                Text(
-                  '12 months', // Placeholder - implement rental duration
-                  style: const TextStyle(color: Colors.grey, fontSize: 12),
                 ),
               ],
             ),
@@ -337,14 +304,14 @@ class RentalRequestsScreen extends StatelessWidget {
                     child: Column(
                       children: [
                         const Text(
-                          'Monthly Rent',
+                          'Payment Amount',
                           style: TextStyle(fontSize: 10, color: Colors.grey),
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          'Tk 0', // Placeholder - implement formatted monthly rent
+                          'Tk ${payment.amount.toStringAsFixed(0)}', // payment.formattedAmount - Need to implement this getter
                           style: const TextStyle(
-                            fontSize: 16,
+                            fontSize: 18,
                             fontWeight: FontWeight.bold,
                             color: Color(0xFF27AE60),
                           ),
@@ -354,43 +321,47 @@ class RentalRequestsScreen extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(width: 12),
-                Expanded(
-                  child: Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: Colors.orange.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Column(
-                      children: [
-                        const Text(
-                          'Security Deposit',
-                          style: TextStyle(fontSize: 10, color: Colors.grey),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          'Tk 0', // Placeholder - implement formatted security deposit
-                          style: const TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            color: Color(0xFFF39C12),
+                if (payment.hasReceipt)
+                  Expanded(
+                    child: Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.blue.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Column(
+                        children: [
+                          const Text(
+                            'Receipt',
+                            style: TextStyle(fontSize: 10, color: Colors.grey),
                           ),
-                        ),
-                      ],
+                          const SizedBox(height: 4),
+                          Text(
+                            'REC-${payment.id.toString().padLeft(6, '0')}', // payment.receiptNumber - Need to implement this getter
+                            style: const TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xFF2C3E50),
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
+                      ),
                     ),
                   ),
-                ),
               ],
             ),
             const SizedBox(height: 16),
 
             // Action Buttons
-            if (request.status.toLowerCase() == 'pending')
+            if (payment.isPending && _isUserLandlord(payment))
               Row(
                 children: [
                   Expanded(
                     child: ElevatedButton(
-                      onPressed: () => _handleApproveRequest(request),
+                      onPressed: () =>
+                          _handleConfirmPayment(payment, controller),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const Color(0xFF27AE60),
                         foregroundColor: Colors.white,
@@ -399,13 +370,14 @@ class RentalRequestsScreen extends StatelessWidget {
                           borderRadius: BorderRadius.circular(8),
                         ),
                       ),
-                      child: const Text('Approve'),
+                      child: const Text('Confirm'),
                     ),
                   ),
                   const SizedBox(width: 8),
                   Expanded(
                     child: ElevatedButton(
-                      onPressed: () => _handleRejectRequest(request),
+                      onPressed: () =>
+                          _handleRejectPayment(payment, controller),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const Color(0xFFE74C3C),
                         foregroundColor: Colors.white,
@@ -419,22 +391,53 @@ class RentalRequestsScreen extends StatelessWidget {
                   ),
                 ],
               )
-            else
+            else if (payment.hasReceipt)
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: () =>
+                          _handleDownloadReceipt(payment, controller),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: const Color(0xFF2C3E50),
+                        side: const BorderSide(color: Color(0xFF2C3E50)),
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                      child: const Text('Download Receipt'),
+                    ),
+                  ),
+                ],
+              )
+            else if (payment.isConfirmed)
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.symmetric(vertical: 12),
                 decoration: BoxDecoration(
-                  color: Colors.grey.withOpacity(0.1),
+                  color: Colors.green.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: Text(
-                  request.statusText,
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.grey,
-                  ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(
+                      Icons.check_circle,
+                      color: Color(0xFF27AE60),
+                      size: 16,
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Payment Confirmed',
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF27AE60),
+                      ),
+                    ),
+                  ],
                 ),
               ),
           ],
@@ -443,27 +446,45 @@ class RentalRequestsScreen extends StatelessWidget {
     );
   }
 
-  void _handleApproveRequest(RentalRequest request) async {
+  bool _isUserLandlord(Payment payment) {
+    // This would check the current user's role from AuthController
+    // For now, return false - implement proper role checking
+    return false;
+  }
+
+  void _handleConfirmPayment(
+    Payment payment,
+    PaymentController controller,
+  ) async {
     try {
-      // Simple update for now - implement proper approval logic
-      final updatedRequest = request.copyWith(status: 'accepted');
-      final controller = Get.find<RentalRequestController>();
-      controller.updateRequest(updatedRequest);
-      Get.snackbar('Success', 'Request approved successfully');
+      await controller.confirmPayment(payment.id);
+      Get.snackbar('Success', 'Payment confirmed successfully');
     } catch (e) {
-      Get.snackbar('Error', 'Failed to approve request: ${e.toString()}');
+      Get.snackbar('Error', 'Failed to confirm payment: ${e.toString()}');
     }
   }
 
-  void _handleRejectRequest(RentalRequest request) async {
+  void _handleRejectPayment(
+    Payment payment,
+    PaymentController controller,
+  ) async {
     try {
-      // Simple update for now - implement proper rejection logic
-      final updatedRequest = request.copyWith(status: 'rejected');
-      final controller = Get.find<RentalRequestController>();
-      controller.updateRequest(updatedRequest);
-      Get.snackbar('Success', 'Request rejected successfully');
+      await controller.rejectPayment(payment.id);
+      Get.snackbar('Success', 'Payment rejected successfully');
     } catch (e) {
-      Get.snackbar('Error', 'Failed to reject request: ${e.toString()}');
+      Get.snackbar('Error', 'Failed to reject payment: ${e.toString()}');
+    }
+  }
+
+  void _handleDownloadReceipt(
+    Payment payment,
+    PaymentController controller,
+  ) async {
+    try {
+      await controller.downloadReceipt(payment.id);
+      Get.snackbar('Success', 'Receipt downloaded successfully');
+    } catch (e) {
+      Get.snackbar('Error', 'Failed to download receipt: ${e.toString()}');
     }
   }
 }

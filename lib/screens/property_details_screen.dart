@@ -265,7 +265,10 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
                                 showDialog(
                                   context: context,
                                   builder: (context) =>
-                                      const RentalApplicationDialog(),
+                                      RentalApplicationDialog(
+                                    propertyId: property.id,
+                                    property: property,
+                                  ),
                                 );
                               },
                               icon: const Icon(Icons.vpn_key),

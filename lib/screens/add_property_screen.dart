@@ -12,7 +12,10 @@ class AddPropertyScreen extends StatelessWidget {
     final controller = Get.put(AddPropertyController());
 
     return Scaffold(
-      appBar: CustomAppBar(title: 'Add New Property', actions: const []),
+      appBar: CustomAppBar(
+        title: 'Add New Property',
+        actions: const <Widget>[],
+      ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(24.0),
         child: Column(
@@ -44,7 +47,8 @@ class AddPropertyScreen extends StatelessWidget {
                         () => _buildDropdown(
                           value: controller.propertyType.value,
                           items: ['Apartment', 'House', 'Villa', 'Office'],
-                          onChanged: (v) => controller.propertyType.value = v!,
+                          onChanged: (v) =>
+                              controller.propertyType.value = v ?? 'Apartment',
                         ),
                       ),
                     ],
@@ -61,7 +65,7 @@ class AddPropertyScreen extends StatelessWidget {
                           value: controller.propertyStatus.value,
                           items: ['For Rent', 'For Sale'],
                           onChanged: (v) =>
-                              controller.propertyStatus.value = v!,
+                              controller.propertyStatus.value = v ?? 'For Rent',
                         ),
                       ),
                     ],
@@ -91,7 +95,7 @@ class AddPropertyScreen extends StatelessWidget {
                 ),
                 secondary: const Icon(Icons.business, size: 20),
                 value: controller.isMultiUnit.value,
-                onChanged: (v) => controller.isMultiUnit.value = v!,
+                onChanged: (v) => controller.isMultiUnit.value = v ?? false,
                 controlAffinity: ListTileControlAffinity.leading,
                 dense: true,
               ),
@@ -488,7 +492,7 @@ class AddPropertyScreen extends StatelessWidget {
               width: 24,
               child: Checkbox(
                 value: value.value,
-                onChanged: (v) => value.value = v!,
+                onChanged: (v) => value.value = v ?? false,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(4),
                 ),
@@ -524,7 +528,7 @@ class AddPropertyScreen extends StatelessWidget {
           ],
         ),
         value: value.value,
-        onChanged: (v) => value.value = v!,
+        onChanged: (v) => value.value = v ?? false,
         controlAffinity: ListTileControlAffinity.leading,
         dense: true,
         contentPadding: const EdgeInsets.only(left: 8, right: 16),
@@ -544,7 +548,7 @@ class AddPropertyScreen extends StatelessWidget {
           width: 24,
           child: Checkbox(
             value: isChecked.value,
-            onChanged: (v) => isChecked.value = v!,
+            onChanged: (v) => isChecked.value = v ?? false,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(4),
             ),
