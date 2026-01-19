@@ -227,8 +227,14 @@ class _TenantHomeScreenState extends State<TenantHomeScreen> {
 
           // Main Content Area
           Expanded(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(24),
+            child: RefreshIndicator(
+              onRefresh: () async {
+                final controller = Get.find<PropertyController>();
+                await controller.fetchProperties();
+              },
+              child: SingleChildScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: const EdgeInsets.all(24),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -515,6 +521,7 @@ class _TenantHomeScreenState extends State<TenantHomeScreen> {
                   ),
                 ],
               ),
+            ),
             ),
           ),
         ],

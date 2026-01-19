@@ -79,12 +79,31 @@ class AddPropertyController extends GetxController {
     return 'all';
   }
 
-  Future<bool> submitProperty() async {
-    isSubmitting.value = true;
+  Future<bool> submitProperty({bool clearFormAfterSuccess = true, bool setSubmittingState = true}) async {
+    if (setSubmittingState) {
+      isSubmitting.value = true;
+    }
 
     try {
-      // Build the property data
+      // Validate required fields before sending
+      if (propertyNameController.text.trim().isEmpty ||
+          locationController.text.trim().isEmpty ||
+          rentController.text.trim().isEmpty ||
+          bedroomsController.text.trim().isEmpty ||
+          bathroomsController.text.trim().isEmpty) {
+        Get.snackbar(
+          'Validation Error',
+          'Please fill all required fields',
+          snackPosition: SnackPosition.BOTTOM,
+          backgroundColor: Colors.orange,
+          colorText: Colors.white,
+        );
+        return false;
+      }
+
+      // Build the property data - matching Laravel backend exactly
       final propertyData = {
+        // Required fields
         'property_name': propertyNameController.text.trim(),
         'location': locationController.text.trim(),
         'rent': int.tryParse(rentController.text.trim()) ?? 0,
@@ -92,40 +111,57 @@ class AddPropertyController extends GetxController {
         'bathrooms': int.tryParse(bathroomsController.text.trim()) ?? 1,
         'property_type': propertyType.value.toLowerCase(),
         'rental_type': getRentalType(),
-        'size': sizeController.text.trim(),
-        'floor': floorController.text.trim(),
+
+        // Optional fields - only include if they have values
+        if (descriptionController.text.trim().isNotEmpty)
+          'description': descriptionController.text.trim(),
+        if (sizeController.text.trim().isNotEmpty)
+          'size': sizeController.text.trim(),
+        if (floorController.text.trim().isNotEmpty)
+          'floor': floorController.text.trim(),
+
+        // Boolean fields - Laravel expects boolean
         'parking': parkingAvailable.value,
         'furnished': furnished.value,
-        'featured': isFeatured.value,
         'available': propertyStatus.value == 'For Rent',
-        'description': descriptionController.text.trim(),
+        'featured': isFeatured.value,
+
+        // is_building for multi-unit properties
+        'is_building': isMultiUnit.value,
       };
 
-      print('Submitting property: $propertyData');
+      print('********** PROPERTY SUBMISSION DEBUG START **********');
+      print('Submitting property with data:');
+      propertyData.forEach((key, value) {
+        print('  $key: $value (${value.runtimeType})');
+      });
+      print('********** PROPERTY SUBMISSION DEBUG END **********');
 
       final response = await ApiService().createProperty(propertyData);
 
-      if (response['success'] == true) {
-        Get.snackbar(
-          'Success',
-          response['message'] ?? 'Property created successfully',
-          snackPosition: SnackPosition.BOTTOM,
-          backgroundColor: Colors.green,
-          colorText: Colors.white,
-        );
-        return true;
-      } else {
-        Get.snackbar(
-          'Error',
-          response['message'] ?? 'Failed to create property',
-          snackPosition: SnackPosition.BOTTOM,
-          backgroundColor: Colors.red,
-          colorText: Colors.white,
-        );
-        return false;
+      print('********** PROPERTY RESPONSE DEBUG START **********');
+      print('Full response: $response');
+      print('********** PROPERTY RESPONSE DEBUG END **********');
+
+      // API throws exception on failure, so reaching here means success
+      Get.snackbar(
+        'Success',
+        response['message'] ?? 'Property created successfully',
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: Colors.green,
+        colorText: Colors.white,
+      );
+      // Only clear form if specified (for "Save" button, not "Save & Add More")
+      if (clearFormAfterSuccess) {
+        clearForm();
       }
+      return true;
     } catch (e) {
+      print('********** PROPERTY SUBMISSION ERROR START **********');
       print('Error submitting property: $e');
+      print('Stack trace: ${StackTrace.current}');
+      print('********** PROPERTY SUBMISSION ERROR END **********');
+
       Get.snackbar(
         'Error',
         'Failed to create property: ${e.toString()}',
@@ -135,7 +171,9 @@ class AddPropertyController extends GetxController {
       );
       return false;
     } finally {
-      isSubmitting.value = false;
+      if (setSubmittingState) {
+        isSubmitting.value = false;
+      }
     }
   }
 

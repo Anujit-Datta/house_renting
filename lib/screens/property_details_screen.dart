@@ -252,35 +252,59 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
                     child: Column(
                       children: [
                         if (Get.find<AuthController>().currentUser != null) ...[
-                          Container(
-                            width: double.infinity,
-                            decoration: BoxDecoration(
-                              gradient: const LinearGradient(
-                                colors: [Color(0xFF5E60CE), Color(0xFF6930C3)],
+                          // Check if property is available or already rented
+                          if (!property.available || property.rentedByMe)
+                            Container(
+                              width: double.infinity,
+                              decoration: BoxDecoration(
+                                color: Colors.grey.shade300,
+                                borderRadius: BorderRadius.circular(8),
                               ),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: ElevatedButton.icon(
-                              onPressed: () {
-                                showDialog(
-                                  context: context,
-                                  builder: (context) =>
-                                      RentalApplicationDialog(
-                                    propertyId: property.id,
-                                    property: property,
-                                  ),
-                                );
-                              },
-                              icon: const Icon(Icons.vpn_key),
-                              label: const Text('Rent Now'),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.transparent,
-                                shadowColor: Colors.transparent,
-                                foregroundColor: Colors.white,
-                                minimumSize: const Size(double.infinity, 45),
+                              child: ElevatedButton.icon(
+                                onPressed: null, // Disabled
+                                icon: const Icon(Icons.block, color: Colors.grey),
+                                label: Text(
+                                  property.rentedByMe ? 'Already Rented by You' : 'Not Available',
+                                  style: const TextStyle(color: Colors.grey),
+                                ),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.transparent,
+                                  shadowColor: Colors.transparent,
+                                  foregroundColor: Colors.grey,
+                                  minimumSize: const Size(double.infinity, 45),
+                                ),
+                              ),
+                            )
+                          else
+                            Container(
+                              width: double.infinity,
+                              decoration: BoxDecoration(
+                                gradient: const LinearGradient(
+                                  colors: [Color(0xFF5E60CE), Color(0xFF6930C3)],
+                                ),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: ElevatedButton.icon(
+                                onPressed: () {
+                                  showDialog(
+                                    context: context,
+                                    builder: (context) =>
+                                        RentalApplicationDialog(
+                                      propertyId: property.id,
+                                      property: property,
+                                    ),
+                                  );
+                                },
+                                icon: const Icon(Icons.vpn_key),
+                                label: const Text('Rent Now'),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.transparent,
+                                  shadowColor: Colors.transparent,
+                                  foregroundColor: Colors.white,
+                                  minimumSize: const Size(double.infinity, 45),
+                                ),
                               ),
                             ),
-                          ),
                           const SizedBox(height: 12),
                         ],
                         OutlinedButton.icon(

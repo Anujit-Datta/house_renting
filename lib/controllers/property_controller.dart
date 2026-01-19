@@ -10,6 +10,9 @@ class Property {
   final bool isVerified;
   final bool isFeatured;
   final bool isFavorited; // Added field
+  final bool available; // Property availability
+  final bool rentedByMe; // If current user has rented this property
+  final String landlordId; // Landlord's user ID
   final int beds;
   final int baths;
   final int sqft;
@@ -29,6 +32,9 @@ class Property {
     required this.isVerified,
     required this.isFeatured,
     this.isFavorited = false, // Default to false
+    this.available = true, // Default to available
+    this.rentedByMe = false, // Default to not rented
+    this.landlordId = '0', // Default to '0' for backward compatibility
     required this.beds,
     required this.baths,
     required this.sqft,
@@ -67,6 +73,9 @@ class Property {
       rating: 0.0, // Not provided in API
       isVerified: json['is_verified'] == true || json['is_verified'] == 1,
       isFeatured: json['featured'] == true || json['featured'] == 1,
+      available: json['available'] == true || json['available'] == 1,
+      rentedByMe: json['rented_by_me'] == true || json['rented_by_me'] == 1,
+      landlordId: toStringOr(json['landlord_id'], '0'),
       beds: toIntOr(json['bedrooms'], 0),
       baths: toIntOr(json['bathrooms'], 0),
       // Handle size carefully
@@ -111,6 +120,9 @@ class Property {
     bool? isVerified,
     bool? isFeatured,
     bool? isFavorited,
+    bool? available,
+    bool? rentedByMe,
+    String? landlordId,
     int? beds,
     int? baths,
     int? sqft,
@@ -130,6 +142,9 @@ class Property {
       isVerified: isVerified ?? this.isVerified,
       isFeatured: isFeatured ?? this.isFeatured,
       isFavorited: isFavorited ?? this.isFavorited,
+      available: available ?? this.available,
+      rentedByMe: rentedByMe ?? this.rentedByMe,
+      landlordId: landlordId ?? this.landlordId,
       beds: beds ?? this.beds,
       baths: baths ?? this.baths,
       sqft: sqft ?? this.sqft,
@@ -145,7 +160,7 @@ class Property {
 
 class PropertyController extends GetxController {
   final RxList<Property> properties = <Property>[].obs;
-  final RxBool isLoading = true.obs;
+  final RxBool isLoading = false.obs;
   final RxString errorMessage = ''.obs;
   final Rxn<Property> currentProperty = Rxn<Property>();
   final RxSet<String> favoriteLoadingIds = <String>{}.obs;
@@ -161,8 +176,8 @@ class PropertyController extends GetxController {
   @override
   void onInit() {
     super.onInit();
-    // Fetch properties on init
-    fetchProperties();
+    // Don't fetch on init - let screens trigger fetch when needed
+    // This prevents conflicts with other controllers also fetching properties
   }
 
   Future<void> fetchProperties() async {

@@ -21,16 +21,18 @@ void main() {
   // Bind Controllers
   Get.put(ThemeController());
   Get.put(AuthController());
-  Get.put(TenantController());
-  Get.put(LandlordController());
-  Get.put(PropertyController());
-  Get.put(RentalRequestController());
-  Get.put(ContractController());
-  Get.put(PaymentController());
-  Get.put(MessageController());
-  Get.put(NotificationController());
-  Get.put(SupportTicketController());
-  Get.put(LandlordWalletController());
+  Get.put(PropertyController()); // PropertyController needed for guests too
+
+  // Lazy load controllers - only initialize when accessed
+  Get.lazyPut(() => TenantController());
+  Get.lazyPut(() => LandlordController());
+  Get.lazyPut(() => RentalRequestController());
+  Get.lazyPut(() => ContractController());
+  Get.lazyPut(() => PaymentController());
+  Get.lazyPut(() => MessageController());
+  Get.lazyPut(() => NotificationController());
+  Get.lazyPut(() => SupportTicketController());
+  Get.lazyPut(() => LandlordWalletController());
 
   runApp(const MyApp());
 }

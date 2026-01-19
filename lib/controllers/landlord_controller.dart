@@ -12,14 +12,22 @@ class LandlordController extends GetxController {
   // Observable properties list
   final myProperties = <Property>[].obs;
   final isLoading = false.obs;
+  bool _isFetching = false; // Flag to prevent concurrent fetches
 
   @override
   void onInit() {
     super.onInit();
-    fetchDashboardData();
+    // Don't fetch on init - let the screen trigger it when needed
   }
 
   Future<void> fetchDashboardData() async {
+    // Prevent concurrent fetches
+    if (_isFetching) {
+      print('DEBUG: Already fetching, skipping duplicate request');
+      return;
+    }
+
+    _isFetching = true;
     try {
       isLoading.value = true;
 
@@ -28,15 +36,27 @@ class LandlordController extends GetxController {
       // We are fetching all and filtering client-side for now as per available API.
       final allProperties = await PropertyService().getProperties();
 
-      // 2. Filter for current user
-      final currentUserEmail = Get.find<AuthController>().currentUser?.email;
+      // 2. Filter for current landlord by ID
+      final currentUser = Get.find<AuthController>().currentUser;
+      final currentUserId = currentUser?.id;
 
-      if (currentUserEmail != null) {
+      print('DEBUG: Current user email: ${currentUser?.email}');
+      print('DEBUG: Current user ID: $currentUserId (type: ${currentUserId.runtimeType})');
+      print('DEBUG: Total properties fetched: ${allProperties.length}');
+
+      if (allProperties.isNotEmpty) {
+        print('DEBUG: First property landlordId: ${allProperties.first.landlordId} (type: ${allProperties.first.landlordId.runtimeType})');
+      }
+
+      if (currentUserId != null) {
         final userProperties = allProperties.where((p) {
-          // Check 'email' in owner map
-          return p.owner['email'] == currentUserEmail;
+          // Filter by landlord_id
+          final matches = p.landlordId == currentUserId.toString();
+          print('DEBUG: Comparing p.landlordId="${p.landlordId}" with currentUserId="$currentUserId" -> $matches');
+          return matches;
         }).toList();
 
+        print('DEBUG: Filtered properties count: ${userProperties.length}');
         myProperties.assignAll(userProperties);
       } else {
         // Fallback or empty if not logged in (shouldn't happen on this screen)
@@ -54,6 +74,7 @@ class LandlordController extends GetxController {
       print('Error fetching landlord data: $e');
     } finally {
       isLoading.value = false;
+      _isFetching = false;
     }
   }
 

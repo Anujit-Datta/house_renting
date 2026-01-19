@@ -4,24 +4,42 @@ import 'package:house_renting/controllers/rental_requests_controller.dart';
 import 'package:house_renting/models.dart';
 import 'package:house_renting/widgets/custom_app_bar.dart';
 
-class RentalRequestsScreen extends StatelessWidget {
+class RentalRequestsScreen extends StatefulWidget {
   const RentalRequestsScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    final controller = Get.put(RentalRequestController());
+  State<RentalRequestsScreen> createState() => _RentalRequestsScreenState();
+}
 
+class _RentalRequestsScreenState extends State<RentalRequestsScreen> {
+  // Track individual request loading states for approve/reject actions
+  final RxSet<String> _loadingActions = <String>{}.obs;
+  late final RentalRequestController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = Get.put(RentalRequestController());
+  }
+
+  @override
+  Widget build(BuildContext context) {
     return Scaffold(
       appBar: CustomAppBar(
         title: 'Rental Requests',
         actions: const [], // No actions needed for this page
       ),
       body: Obx(
-        () => controller.isLoading.value
+        () => _controller.isLoading.value
             ? const Center(child: CircularProgressIndicator())
-            : SingleChildScrollView(
-                padding: const EdgeInsets.all(24.0),
-                child: Column(
+            : RefreshIndicator(
+                onRefresh: () async {
+                  await _controller.fetchRentalRequests();
+                },
+                child: SingleChildScrollView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  padding: const EdgeInsets.all(24.0),
+                  child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     // Header
@@ -54,23 +72,24 @@ class RentalRequestsScreen extends StatelessWidget {
                     const SizedBox(height: 24),
 
                     // Stats Grid
-                    _buildStatsGrid(controller),
+                    _buildStatsGrid(_controller),
                     const SizedBox(height: 32),
 
                     // Requests List
-                    if (controller.requests.isEmpty)
+                    if (_controller.requests.isEmpty)
                       _buildEmptyState()
                     else
                       ListView.builder(
                         shrinkWrap: true,
                         physics: const NeverScrollableScrollPhysics(),
-                        itemCount: controller.requests.length,
+                        itemCount: _controller.requests.length,
                         itemBuilder: (context, index) {
-                          final request = controller.requests[index];
+                          final request = _controller.requests[index];
                           return _buildRequestCard(request);
                         },
                       ),
                   ],
+                ),
                 ),
               ),
       ),
@@ -114,7 +133,7 @@ class RentalRequestsScreen extends StatelessWidget {
             ),
             _buildStatCard(
               Icons.business,
-              '5', // Placeholder - implement actual property count
+              controller.getPropertiesWithRequestsCount().toString(),
               'Properties with\nRequests',
               Colors.blue.shade700,
               Colors.white,
@@ -235,7 +254,7 @@ class RentalRequestsScreen extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Unknown Property', // Placeholder - implement property relationship
+                        request.propertyName,
                         style: const TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
@@ -243,7 +262,7 @@ class RentalRequestsScreen extends StatelessWidget {
                         ),
                       ),
                       Text(
-                        'Tenant: Unknown', // Placeholder - implement tenant relationship
+                        'Tenant: ${request.tenantName}',
                         style: TextStyle(
                           color: Colors.grey.shade600,
                           fontSize: 14,
@@ -294,7 +313,7 @@ class RentalRequestsScreen extends StatelessWidget {
                 const SizedBox(width: 4),
                 Expanded(
                   child: Text(
-                    'Unknown Location', // Placeholder - implement property relationship
+                    request.property['location'] ?? 'Unknown Location',
                     style: const TextStyle(color: Colors.grey, fontSize: 12),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
@@ -310,16 +329,18 @@ class RentalRequestsScreen extends StatelessWidget {
                 const Icon(Icons.calendar_today, size: 16, color: Colors.grey),
                 const SizedBox(width: 4),
                 Text(
-                  'Move-in: Unknown', // Placeholder - implement move-in date
+                  'Move-in: ${request.formattedMoveInDate}',
                   style: const TextStyle(color: Colors.grey, fontSize: 12),
                 ),
                 const SizedBox(width: 16),
-                const Icon(Icons.access_time, size: 16, color: Colors.grey),
-                const SizedBox(width: 4),
-                Text(
-                  '12 months', // Placeholder - implement rental duration
-                  style: const TextStyle(color: Colors.grey, fontSize: 12),
-                ),
+                if (request.rentalDuration != null) ...[
+                  const Icon(Icons.access_time, size: 16, color: Colors.grey),
+                  const SizedBox(width: 4),
+                  Text(
+                    '${request.rentalDuration} months',
+                    style: const TextStyle(color: Colors.grey, fontSize: 12),
+                  ),
+                ],
               ],
             ),
             const SizedBox(height: 16),
@@ -342,38 +363,11 @@ class RentalRequestsScreen extends StatelessWidget {
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          'Tk 0', // Placeholder - implement formatted monthly rent
+                          request.monthlyRent != null ? 'Tk ${request.monthlyRent!.toStringAsFixed(0)}' : 'N/A',
                           style: const TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.bold,
                             color: Color(0xFF27AE60),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: Colors.orange.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Column(
-                      children: [
-                        const Text(
-                          'Security Deposit',
-                          style: TextStyle(fontSize: 10, color: Colors.grey),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          'Tk 0', // Placeholder - implement formatted security deposit
-                          style: const TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            color: Color(0xFFF39C12),
                           ),
                         ),
                       ],
@@ -386,38 +380,64 @@ class RentalRequestsScreen extends StatelessWidget {
 
             // Action Buttons
             if (request.status.toLowerCase() == 'pending')
-              Row(
-                children: [
-                  Expanded(
-                    child: ElevatedButton(
-                      onPressed: () => _handleApproveRequest(request),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF27AE60),
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
+              Obx(
+                () => Row(
+                  children: [
+                    Expanded(
+                      child: ElevatedButton(
+                        onPressed: _loadingActions.contains('approve_${request.id}')
+                            ? null
+                            : () => _handleApproveRequest(request),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF27AE60),
+                          foregroundColor: Colors.white,
+                          disabledBackgroundColor: Colors.green.shade300,
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
                         ),
+                        child: _loadingActions.contains('approve_${request.id}')
+                            ? const SizedBox(
+                                height: 20,
+                                width: 20,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                ),
+                              )
+                            : const Text('Approve'),
                       ),
-                      child: const Text('Approve'),
                     ),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: ElevatedButton(
-                      onPressed: () => _handleRejectRequest(request),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFFE74C3C),
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: ElevatedButton(
+                        onPressed: _loadingActions.contains('reject_${request.id}')
+                            ? null
+                            : () => _handleRejectRequest(request),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFFE74C3C),
+                          foregroundColor: Colors.white,
+                          disabledBackgroundColor: Colors.red.shade300,
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
                         ),
+                        child: _loadingActions.contains('reject_${request.id}')
+                            ? const SizedBox(
+                                height: 20,
+                                width: 20,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                ),
+                              )
+                            : const Text('Reject'),
                       ),
-                      child: const Text('Reject'),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               )
             else
               Container(
@@ -444,26 +464,102 @@ class RentalRequestsScreen extends StatelessWidget {
   }
 
   void _handleApproveRequest(RentalRequest request) async {
+    print('********** APPROVE REQUEST DEBUG START **********');
+    print('Approving rental request ID: ${request.id}');
+    print('Current status: ${request.status}');
+    print('Tenant: ${request.tenantName}');
+    print('Property: ${request.propertyName}');
+    print('********** APPROVE REQUEST DEBUG END **********');
+
+    // Add to loading set with specific action key
+    _loadingActions.add('approve_${request.id}');
+
     try {
-      // Simple update for now - implement proper approval logic
-      final updatedRequest = request.copyWith(status: 'accepted');
-      final controller = Get.find<RentalRequestController>();
-      controller.updateRequest(updatedRequest);
-      Get.snackbar('Success', 'Request approved successfully');
+      // Call the API through controller
+      final updatedRequest = await _controller.approveRentalRequest(request.id);
+
+      print('********** APPROVE REQUEST RESPONSE START **********');
+      print('Request approved successfully');
+      print('New status: ${updatedRequest.status}');
+      print('********** APPROVE REQUEST RESPONSE END **********');
+
+      if (mounted) {
+        Get.snackbar(
+          'Success',
+          'Rental request approved successfully',
+          snackPosition: SnackPosition.BOTTOM,
+          backgroundColor: Colors.green,
+          colorText: Colors.white,
+        );
+      }
     } catch (e) {
-      Get.snackbar('Error', 'Failed to approve request: ${e.toString()}');
+      print('********** APPROVE REQUEST ERROR START **********');
+      print('Error approving request: $e');
+      print('Stack trace: ${StackTrace.current}');
+      print('********** APPROVE REQUEST ERROR END **********');
+
+      if (mounted) {
+        Get.snackbar(
+          'Error',
+          'Failed to approve request: ${e.toString()}',
+          snackPosition: SnackPosition.BOTTOM,
+          backgroundColor: Colors.red,
+          colorText: Colors.white,
+        );
+      }
+    } finally {
+      // Remove from loading set
+      _loadingActions.remove('approve_${request.id}');
     }
   }
 
   void _handleRejectRequest(RentalRequest request) async {
+    print('********** REJECT REQUEST DEBUG START **********');
+    print('Rejecting rental request ID: ${request.id}');
+    print('Current status: ${request.status}');
+    print('Tenant: ${request.tenantName}');
+    print('Property: ${request.propertyName}');
+    print('********** REJECT REQUEST DEBUG END **********');
+
+    // Add to loading set with specific action key
+    _loadingActions.add('reject_${request.id}');
+
     try {
-      // Simple update for now - implement proper rejection logic
-      final updatedRequest = request.copyWith(status: 'rejected');
-      final controller = Get.find<RentalRequestController>();
-      controller.updateRequest(updatedRequest);
-      Get.snackbar('Success', 'Request rejected successfully');
+      // Call the API through controller
+      final updatedRequest = await _controller.rejectRentalRequest(request.id);
+
+      print('********** REJECT REQUEST RESPONSE START **********');
+      print('Request rejected successfully');
+      print('New status: ${updatedRequest.status}');
+      print('********** REJECT REQUEST RESPONSE END **********');
+
+      if (mounted) {
+        Get.snackbar(
+          'Success',
+          'Rental request rejected successfully',
+          snackPosition: SnackPosition.BOTTOM,
+          backgroundColor: Colors.green,
+          colorText: Colors.white,
+        );
+      }
     } catch (e) {
-      Get.snackbar('Error', 'Failed to reject request: ${e.toString()}');
+      print('********** REJECT REQUEST ERROR START **********');
+      print('Error rejecting request: $e');
+      print('Stack trace: ${StackTrace.current}');
+      print('********** REJECT REQUEST ERROR END **********');
+
+      if (mounted) {
+        Get.snackbar(
+          'Error',
+          'Failed to reject request: ${e.toString()}',
+          snackPosition: SnackPosition.BOTTOM,
+          backgroundColor: Colors.red,
+          colorText: Colors.white,
+        );
+      }
+    } finally {
+      // Remove from loading set
+      _loadingActions.remove('reject_${request.id}');
     }
   }
 }

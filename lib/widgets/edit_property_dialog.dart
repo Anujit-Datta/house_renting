@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:house_renting/controllers/property_controller.dart';
+import 'package:house_renting/controllers/landlord_controller.dart';
+import 'package:house_renting/services/api_service.dart';
 
 class EditPropertyDialog extends StatefulWidget {
   final Property property;
@@ -23,10 +25,11 @@ class _EditPropertyDialogState extends State<EditPropertyDialog> {
   late TextEditingController _mapController;
 
   String _selectedPropertyType = 'Apartment';
-  bool _available = true;
-  bool _featured = false;
-  bool _parking = false;
-  bool _furnished = false;
+  late bool _available;
+  late bool _featured;
+  late bool _parking;
+  late bool _furnished;
+  bool _isSubmitting = false;
 
   @override
   void initState() {
@@ -56,16 +59,26 @@ class _EditPropertyDialogState extends State<EditPropertyDialog> {
 
     // Validate Property Type
     String incomingType =
-        widget.property.details['Property Type']?.toString() ?? 'Apartment';
-    const allowedTypes = ['Apartment', 'House', 'Duplex', 'Flat', 'Villa'];
+        widget.property.details['Property Type']?.toString().toLowerCase() ?? 'apartment';
+
+    print('********** EDIT PROPERTY TYPE DEBUG **********');
+    print('Property Type from details: ${widget.property.details['Property Type']}');
+    print('Lowercased incomingType: $incomingType');
+    print('Available from property: ${widget.property.available}');
+    print('Featured from property: ${widget.property.isFeatured}');
+    print('***********************************************');
+
+    const allowedTypes = ['apartment', 'house', 'duplex', 'flat', 'villa', 'office'];
     if (allowedTypes.contains(incomingType)) {
-      _selectedPropertyType = incomingType;
+      // Capitalize first letter for display
+      _selectedPropertyType = incomingType[0].toUpperCase() + incomingType.substring(1);
     } else {
-      // Fallback if the API returns an ID (e.g. "0") or unknown type
+      // Fallback if the API returns an unknown type
       _selectedPropertyType = 'Apartment';
     }
 
     _featured = widget.property.isFeatured;
+    _available = widget.property.available;
     // Simple logic associated with 'Parking' in 'Available' for demo
     _parking =
         widget.property.details['Parking']?.toString().contains('Available') ??
@@ -85,6 +98,152 @@ class _EditPropertyDialogState extends State<EditPropertyDialog> {
     _descController.dispose();
     _mapController.dispose();
     super.dispose();
+  }
+
+  Future<void> _handleUpdateProperty() async {
+    // Validate required fields
+    if (_nameController.text.trim().isEmpty) {
+      Get.snackbar(
+        'Validation Error',
+        'Please enter property name',
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: Colors.orange,
+        colorText: Colors.white,
+      );
+      return;
+    }
+    if (_locationController.text.trim().isEmpty) {
+      Get.snackbar(
+        'Validation Error',
+        'Please enter location',
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: Colors.orange,
+        colorText: Colors.white,
+      );
+      return;
+    }
+    if (_rentController.text.trim().isEmpty) {
+      Get.snackbar(
+        'Validation Error',
+        'Please enter rent amount',
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: Colors.orange,
+        colorText: Colors.white,
+      );
+      return;
+    }
+    if (int.tryParse(_rentController.text.trim()) == null) {
+      Get.snackbar(
+        'Validation Error',
+        'Rent must be a valid number',
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: Colors.orange,
+        colorText: Colors.white,
+      );
+      return;
+    }
+
+    print('********** PROPERTY UPDATE DEBUG START **********');
+    print('Updating property ID: ${widget.property.id}');
+    print('Property name: ${_nameController.text.trim()}');
+    print('********** PROPERTY UPDATE DEBUG END **********');
+
+    setState(() {
+      _isSubmitting = true;
+    });
+
+    try {
+      // Build the property data - matching Laravel backend exactly
+      final propertyData = {
+        // Required fields
+        'property_name': _nameController.text.trim(),
+        'location': _locationController.text.trim(),
+        'rent': int.tryParse(_rentController.text.trim()) ?? 0,
+        'bedrooms': int.tryParse(_bedsController.text.trim()) ?? widget.property.beds,
+        'bathrooms': int.tryParse(_bathsController.text.trim()) ?? widget.property.baths,
+        'property_type': _selectedPropertyType.toLowerCase(),
+
+        // Optional fields - only include if they have values
+        if (_descController.text.trim().isNotEmpty)
+          'description': _descController.text.trim(),
+        if (_sizeController.text.trim().isNotEmpty)
+          'size': _sizeController.text.trim(),
+        if (_floorController.text.trim().isNotEmpty)
+          'floor': _floorController.text.trim(),
+
+        // Boolean fields
+        'parking': _parking,
+        'furnished': _furnished,
+        'available': _available,
+        'featured': _featured,
+      };
+
+      print('********** SENDING UPDATE DATA START **********');
+      propertyData.forEach((key, value) {
+        print('  $key: $value (${value.runtimeType})');
+      });
+      print('********** SENDING UPDATE DATA END **********');
+
+      final response = await ApiService().updateProperty(
+        int.parse(widget.property.id),
+        propertyData,
+      );
+
+      print('********** UPDATE RESPONSE START **********');
+      print('Response status: ${response['success']}');
+      print('Response message: ${response['message']}');
+      print('********** UPDATE RESPONSE END **********');
+
+      if (response['success'] == true) {
+        if (mounted) {
+          Get.snackbar(
+            'Success',
+            response['message'] ?? 'Property updated successfully',
+            snackPosition: SnackPosition.BOTTOM,
+            backgroundColor: Colors.green,
+            colorText: Colors.white,
+          );
+
+          // Refresh landlord dashboard
+          final landlordController = Get.find<LandlordController>();
+          await landlordController.fetchDashboardData();
+
+          // Close dialog
+          Get.back();
+        }
+      } else {
+        if (mounted) {
+          Get.snackbar(
+            'Error',
+            response['message'] ?? 'Failed to update property',
+            snackPosition: SnackPosition.BOTTOM,
+            backgroundColor: Colors.red,
+            colorText: Colors.white,
+          );
+        }
+      }
+    } catch (e) {
+      print('********** UPDATE ERROR START **********');
+      print('Error updating property: $e');
+      print('Stack trace: ${StackTrace.current}');
+      print('********** UPDATE ERROR END **********');
+
+      if (mounted) {
+        Get.snackbar(
+          'Error',
+          'Failed to update property: ${e.toString()}',
+          snackPosition: SnackPosition.BOTTOM,
+          backgroundColor: Colors.red,
+          colorText: Colors.white,
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isSubmitting = false;
+        });
+      }
+    }
   }
 
   @override
@@ -188,35 +347,6 @@ class _EditPropertyDialogState extends State<EditPropertyDialog> {
                     ),
                     const SizedBox(height: 24),
 
-                    // Image Preview
-                    Stack(
-                      children: [
-                        Image.network(
-                          widget.property.imageUrl,
-                          height: 150,
-                          width: 120,
-                          fit: BoxFit.cover,
-                        ),
-                        Positioned(
-                          right: 0,
-                          top: 0,
-                          child: InkWell(
-                            onTap: () {},
-                            child: const CircleAvatar(
-                              radius: 10,
-                              backgroundColor: Colors.grey,
-                              child: Icon(
-                                Icons.close,
-                                size: 12,
-                                color: Colors.white,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 24),
-
                     // File Inputs
                     _buildLabel('Main Image'),
                     _buildFileInput('No file chosen'),
@@ -230,32 +360,37 @@ class _EditPropertyDialogState extends State<EditPropertyDialog> {
                     SizedBox(
                       width: 160,
                       child: ElevatedButton(
-                        onPressed: () {
-                          Get.back();
-                          Get.snackbar(
-                            'Success',
-                            'Property Updated Successfully',
-                            backgroundColor: Colors.green,
-                            colorText: Colors.white,
-                          );
-                        },
+                        onPressed: _isSubmitting
+                            ? null
+                            : () => _handleUpdateProperty(),
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(
-                            0xFF5CB85C,
-                          ), // Green color matching image
+                          backgroundColor: _isSubmitting
+                              ? Colors.green.shade300
+                              : const Color(
+                                  0xFF5CB85C,
+                                ), // Green color matching image
                           foregroundColor: Colors.white,
                           padding: const EdgeInsets.symmetric(vertical: 16),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(4),
                           ),
                         ),
-                        child: const Text(
-                          'Update Property',
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
+                        child: _isSubmitting
+                            ? const SizedBox(
+                                height: 20,
+                                width: 20,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                ),
+                              )
+                            : const Text(
+                                'Update Property',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
                       ),
                     ),
                   ],

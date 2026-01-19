@@ -141,6 +141,15 @@ class AuthController extends GetxController {
 
     _currentUser = null;
     update();
+
+    // Reset PropertyController state to avoid infinite loading
+    if (Get.isRegistered<PropertyController>()) {
+      final propertyController = Get.find<PropertyController>();
+      propertyController.properties.clear();
+      propertyController.isLoading.value = false;
+      propertyController.errorMessage.value = '';
+    }
+
     Get.offAll(() => const GuestHomeScreen());
   }
 

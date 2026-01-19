@@ -95,7 +95,7 @@ class RentalRequestController extends GetxController {
 
   Future<RentalRequest> approveRentalRequest(int id) async {
     try {
-      isLoading(true);
+      // Don't set global isLoading - let screen handle inline loading
       errorMessage('');
 
       final response = await _apiService.approveRentalRequest(id);
@@ -124,14 +124,12 @@ class RentalRequestController extends GetxController {
       errorMessage(e.toString());
       print('Error approving rental request: $e');
       rethrow;
-    } finally {
-      isLoading(false);
     }
   }
 
   Future<RentalRequest> rejectRentalRequest(int id, {String? reason}) async {
     try {
-      isLoading(true);
+      // Don't set global isLoading - let screen handle inline loading
       errorMessage('');
 
       final response = await _apiService.rejectRentalRequest(
@@ -163,8 +161,6 @@ class RentalRequestController extends GetxController {
       errorMessage(e.toString());
       print('Error rejecting rental request: $e');
       rethrow;
-    } finally {
-      isLoading(false);
     }
   }
 
@@ -258,6 +254,13 @@ class RentalRequestController extends GetxController {
 
   int getRejectedCount() {
     return rejectedRequests.length;
+  }
+
+  int getPropertiesWithRequestsCount() {
+    return rentalRequests
+        .map((r) => r.propertyId)
+        .toSet()
+        .length;
   }
 
   void updateRequest(RentalRequest request) {

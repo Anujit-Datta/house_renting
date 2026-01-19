@@ -34,6 +34,8 @@ class PropertyService {
     String? propertyType,
   }) async {
     try {
+      print('********** PROPERTY FETCH DEBUG START **********');
+
       final queryParams = <String, String>{};
       if (location != null && location != 'Any')
         queryParams['location'] = location;
@@ -52,6 +54,7 @@ class PropertyService {
 
       print('Fetching properties from: $uri');
       final headers = await _getHeaders();
+      print('Headers: $headers');
       final response = await http
           .get(uri, headers: headers)
           .timeout(const Duration(seconds: 10));
@@ -61,6 +64,7 @@ class PropertyService {
       // print('Response Body: ${response.body}');
 
       if (response.statusCode == 200) {
+        print('********** PROPERTY FETCH DEBUG END **********');
         final dynamic decoded = json.decode(response.body);
 
         // Handle if response is wrapped in { "data": [...] }
@@ -80,7 +84,14 @@ class PropertyService {
           print('DEBUG: First Property JSON: ${json.encode(data.first)}');
         }
 
-        return data.map((json) => Property.fromJson(json)).toList();
+        print('DEBUG: Starting to parse ${data.length} properties...');
+        final properties = data.map((json) {
+          print('DEBUG: Parsing property ID: ${json['id']}');
+          return Property.fromJson(json);
+        }).toList();
+        print('DEBUG: Finished parsing properties');
+
+        return properties;
       } else {
         throw Exception(
           'Failed to load properties: ${response.statusCode} - ${response.reasonPhrase}',

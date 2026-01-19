@@ -1,16 +1,31 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:house_renting/controllers/add_property_controller.dart';
+import 'package:house_renting/screens/landlord_home_screen.dart';
 import 'package:house_renting/widgets/custom_app_bar.dart';
 
-class AddPropertyScreen extends StatelessWidget {
+class AddPropertyScreen extends StatefulWidget {
   const AddPropertyScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    // Ensure controller is initialized
-    final controller = Get.put(AddPropertyController());
+  State<AddPropertyScreen> createState() => _AddPropertyScreenState();
+}
 
+class _AddPropertyScreenState extends State<AddPropertyScreen> {
+  // Individual loading states for each button
+  final RxBool _isSaving = false.obs;
+  final RxBool _isSavingAndAdding = false.obs;
+  late final AddPropertyController controller;
+
+  @override
+  void initState() {
+    super.initState();
+    // Initialize controller ONCE in initState, not in build
+    controller = Get.put(AddPropertyController());
+  }
+
+  @override
+  Widget build(BuildContext context) {
     return Scaffold(
       appBar: CustomAppBar(
         title: 'Add New Property',
@@ -341,33 +356,89 @@ class AddPropertyScreen extends StatelessWidget {
             ),
 
             const SizedBox(height: 40),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: () {
-                  Get.back();
-                  Get.snackbar(
-                    'Success',
-                    'Property Added Successfully',
-                    backgroundColor: Colors.green,
-                    colorText: Colors.white,
-                  );
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF2C3E50),
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
+            Obx(
+              () => Row(
+                children: [
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: _isSaving.value
+                          ? null
+                          : () async {
+                              await _validateAndSubmit(redirect: true);
+                            },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: _isSaving.value
+                            ? Colors.grey
+                            : const Color(0xFF27AE60),
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                      child: _isSaving.value
+                          ? const SizedBox(
+                              height: 18,
+                              width: 18,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                valueColor: AlwaysStoppedAnimation<Color>(
+                                  Colors.white,
+                                ),
+                              ),
+                            )
+                          : const FittedBox(
+                              child: Text(
+                                'Save',
+                                style: TextStyle(
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                    ),
                   ),
-                ),
-                child: const Text(
-                  'Save Property',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: _isSavingAndAdding.value
+                          ? null
+                          : () async {
+                              await _validateAndSubmit(redirect: false);
+                            },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: _isSavingAndAdding.value
+                            ? Colors.grey
+                            : const Color(0xFF2C3E50),
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                      child: _isSavingAndAdding.value
+                          ? const SizedBox(
+                              height: 18,
+                              width: 18,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                valueColor: AlwaysStoppedAnimation<Color>(
+                                  Colors.white,
+                                ),
+                              ),
+                            )
+                          : const FittedBox(
+                              child: Text(
+                                'Save & Add More',
+                                style: TextStyle(
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                    ),
                   ),
-                ),
+                ],
               ),
             ),
             const SizedBox(height: 40),
@@ -592,5 +663,122 @@ class AddPropertyScreen extends StatelessWidget {
         ),
       ],
     );
+  }
+
+  // Helper method to validate and submit property
+  Future<void> _validateAndSubmit({required bool redirect}) async {
+    print('********** ADD PROPERTY DEBUG START **********');
+    print('Redirect: $redirect');
+
+    // Validate required fields
+    if (controller.propertyNameController.text.trim().isEmpty) {
+      Get.snackbar(
+        'Validation Error',
+        'Please enter property name',
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: Colors.orange,
+        colorText: Colors.white,
+      );
+      return;
+    }
+    if (controller.locationController.text.trim().isEmpty) {
+      Get.snackbar(
+        'Validation Error',
+        'Please enter location',
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: Colors.orange,
+        colorText: Colors.white,
+      );
+      return;
+    }
+    if (controller.rentController.text.trim().isEmpty) {
+      Get.snackbar(
+        'Validation Error',
+        'Please enter rent amount',
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: Colors.orange,
+        colorText: Colors.white,
+      );
+      return;
+    }
+    if (int.tryParse(controller.rentController.text.trim()) == null) {
+      Get.snackbar(
+        'Validation Error',
+        'Rent must be a valid number',
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: Colors.orange,
+        colorText: Colors.white,
+      );
+      return;
+    }
+    if (controller.bedroomsController.text.trim().isEmpty ||
+        int.tryParse(controller.bedroomsController.text.trim()) == null) {
+      Get.snackbar(
+        'Validation Error',
+        'Please enter valid number of bedrooms',
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: Colors.orange,
+        colorText: Colors.white,
+      );
+      return;
+    }
+    if (controller.bathroomsController.text.trim().isEmpty ||
+        int.tryParse(controller.bathroomsController.text.trim()) == null) {
+      Get.snackbar(
+        'Validation Error',
+        'Please enter valid number of bathrooms',
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: Colors.orange,
+        colorText: Colors.white,
+      );
+      return;
+    }
+
+    print('Validation passed, setting loading state');
+
+    // Set appropriate loading state based on redirect
+    if (redirect) {
+      _isSaving.value = true;
+    } else {
+      _isSavingAndAdding.value = true;
+    }
+
+    // Submit property (controller won't set its own isSubmitting)
+    bool success = false;
+    try {
+      print('Calling submitProperty with clearFormAfterSuccess: $redirect');
+      success = await controller.submitProperty(
+        clearFormAfterSuccess: redirect,
+        setSubmittingState: false,
+      );
+      print('submitProperty returned success: $success');
+    } catch (e) {
+      print('Error in submitProperty: $e');
+      success = false;
+    }
+
+    // Navigate if successful and redirect is true
+    if (success && redirect) {
+      print('About to navigate back to landlord home');
+      // Clear loading state first to avoid disposed widget errors
+      _isSaving.value = false;
+
+      // Use Future.microtask to navigate in next microtask
+      Future.microtask(() {
+        print('In microtask - calling Get.offAll() to LandlordHomeScreen');
+        // Completely replace the stack with landlord home
+        Get.offAll(() => const LandlordHomeScreen());
+        print('Navigation completed');
+      });
+
+      print('Scheduled navigation in microtask');
+      return;
+    }
+
+    // Clear loading state if not redirecting (Save & Add More button)
+    print('Clearing loading state (no navigation)');
+    _isSavingAndAdding.value = false;
+
+    print('********** ADD PROPERTY DEBUG END **********');
   }
 }

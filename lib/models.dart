@@ -207,16 +207,21 @@ class Contract {
   }
 
   double get securityDeposit {
-    final deposit = terms?['security_deposit'] ?? contractData['security_deposit'] ?? 0;
+    final deposit =
+        terms?['security_deposit'] ?? contractData['security_deposit'] ?? 0;
     return (deposit is num) ? deposit.toDouble() : 0.0;
   }
 
   String? get propertyName {
-    return property?['property_name'] ?? property?['name'] ?? contractData['property_name'];
+    return property?['property_name'] ??
+        property?['name'] ??
+        contractData['property_name'];
   }
 
   String? get propertyAddress {
-    return property?['location'] ?? property?['address'] ?? contractData['property_address'];
+    return property?['location'] ??
+        property?['address'] ??
+        contractData['property_address'];
   }
 
   String? get tenantName {
@@ -491,9 +496,8 @@ class RentalRequest {
   final String? tenantPhone; // Added
   final String? nationalId; // Added
   final String moveInDate; // Added (was implicit or missing)
-  final int rentalDuration; // Added
-  final double monthlyRent; // Added
-  final double securityDeposit; // Added
+  final int? rentalDuration; // Made optional - not in database
+  final double? monthlyRent; // Now populated from property_rent in API
   final String? paymentMethod; // Added
   final bool hasPets; // Added
   final String? currentAddress; // Added
@@ -502,7 +506,6 @@ class RentalRequest {
   final String? emergencyContact; // Added
   final String? emergencyPhone; // Added
   final String? notes; // Added
-  final String? messageToLandlord;
   final String status;
   final DateTime? approvedAt;
   final DateTime requestDate; // Renamed from createdAt/updatedAt logic
@@ -523,9 +526,8 @@ class RentalRequest {
     this.tenantPhone,
     this.nationalId,
     required this.moveInDate,
-    required this.rentalDuration,
-    required this.monthlyRent,
-    required this.securityDeposit,
+    this.rentalDuration, // Optional - not in database
+    this.monthlyRent, // Now populated from property_rent in API
     this.paymentMethod,
     required this.hasPets,
     this.currentAddress,
@@ -534,7 +536,6 @@ class RentalRequest {
     this.emergencyContact,
     this.emergencyPhone,
     this.notes,
-    this.messageToLandlord,
     required this.status,
     this.approvedAt,
     required this.requestDate,
@@ -557,9 +558,13 @@ class RentalRequest {
       tenantPhone: json['tenant_phone'],
       nationalId: json['national_id'],
       moveInDate: json['move_in_date'] ?? '',
-      rentalDuration: json['rental_duration'] ?? 0,
-      monthlyRent: (json['monthly_rent'] ?? 0).toDouble(),
-      securityDeposit: (json['security_deposit'] ?? 0).toDouble(),
+      rentalDuration:
+          json['rental_duration'], // Optional - may not be in response
+      monthlyRent: json['property_rent'] != null
+          ? (json['property_rent'] is String
+                ? double.tryParse(json['property_rent'])
+                : json['property_rent'].toDouble())
+          : null, // From API property_rent field
       paymentMethod: json['payment_method'],
       hasPets: json['has_pets'] ?? false,
       currentAddress: json['current_address'],
@@ -568,7 +573,6 @@ class RentalRequest {
       emergencyContact: json['emergency_contact'],
       emergencyPhone: json['emergency_phone'],
       notes: json['notes'],
-      messageToLandlord: json['message_to_landlord'],
       status: json['status'] ?? 'pending',
       approvedAt: json['approved_at'] != null
           ? DateTime.parse(json['approved_at'])
@@ -600,7 +604,6 @@ class RentalRequest {
       'move_in_date': moveInDate,
       'rental_duration': rentalDuration,
       'monthly_rent': monthlyRent,
-      'security_deposit': securityDeposit,
       'payment_method': paymentMethod,
       'has_pets': hasPets,
       'current_address': currentAddress,
@@ -609,7 +612,6 @@ class RentalRequest {
       'emergency_contact': emergencyContact,
       'emergency_phone': emergencyPhone,
       'notes': notes,
-      'message_to_landlord': messageToLandlord,
       'status': status,
       'approved_at': approvedAt?.toIso8601String(),
       'request_date': requestDate.toIso8601String(),
@@ -631,11 +633,7 @@ class RentalRequest {
   }
 
   String get formattedMonthlyRent {
-    return 'Tk ${monthlyRent.toStringAsFixed(0)}';
-  }
-
-  String get formattedSecurityDeposit {
-    return 'Tk ${securityDeposit.toStringAsFixed(0)}';
+    return 'Tk ${monthlyRent?.toStringAsFixed(0) ?? 'N/A'}';
   }
 
   String get statusText {
@@ -729,7 +727,6 @@ class RentalRequest {
       moveInDate: moveInDate ?? this.moveInDate,
       rentalDuration: rentalDuration ?? this.rentalDuration,
       monthlyRent: monthlyRent ?? this.monthlyRent,
-      securityDeposit: securityDeposit ?? this.securityDeposit,
       paymentMethod: paymentMethod ?? this.paymentMethod,
       hasPets: hasPets ?? this.hasPets,
       currentAddress: currentAddress ?? this.currentAddress,
@@ -738,7 +735,6 @@ class RentalRequest {
       emergencyContact: emergencyContact ?? this.emergencyContact,
       emergencyPhone: emergencyPhone ?? this.emergencyPhone,
       notes: notes ?? this.notes,
-      messageToLandlord: messageToLandlord ?? this.messageToLandlord,
       status: status ?? this.status,
       approvedAt: approvedAt ?? this.approvedAt,
       requestDate: requestDate ?? this.requestDate,

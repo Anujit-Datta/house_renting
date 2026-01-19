@@ -2,30 +2,47 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:house_renting/controllers/auth_controller.dart';
 import 'package:house_renting/controllers/landlord_controller.dart';
+import 'package:house_renting/services/api_service.dart';
 import 'package:house_renting/widgets/custom_app_bar.dart';
 import 'package:house_renting/screens/add_property_screen.dart';
 import 'package:house_renting/widgets/edit_property_dialog.dart';
 import 'package:house_renting/screens/rental_requests_screen.dart';
 import 'package:house_renting/screens/landlord_wallet_screen.dart';
 
-class LandlordHomeScreen extends GetView<LandlordController> {
+class LandlordHomeScreen extends StatefulWidget {
   const LandlordHomeScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    // Force fetch if empty (ensures data is present after hot reload)
-    if (controller.stats.isEmpty) {
-      controller.fetchDashboardData();
-    }
+  State<LandlordHomeScreen> createState() => _LandlordHomeScreenState();
+}
 
+class _LandlordHomeScreenState extends State<LandlordHomeScreen> {
+  final controller = Get.find<LandlordController>();
+
+  @override
+  void initState() {
+    super.initState();
+    // Fetch data once when screen is initialized
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      controller.fetchDashboardData();
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
     return Scaffold(
       appBar: CustomAppBar(
         title: 'Landlord Dashboard',
         actions: [_buildAvatarMenu(), const SizedBox(width: 16)],
       ),
-      body: SingleChildScrollView(
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
+      body: RefreshIndicator(
+        onRefresh: () async {
+          await controller.fetchDashboardData();
+        },
+        child: SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          child: Padding(
+            padding: const EdgeInsets.all(16.0),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -87,6 +104,7 @@ class LandlordHomeScreen extends GetView<LandlordController> {
               const SizedBox(height: 100), // Bottom padding
             ],
           ),
+        ),
         ),
       ),
     );
@@ -425,7 +443,7 @@ class LandlordHomeScreen extends GetView<LandlordController> {
                           const SizedBox(width: 12),
                           Expanded(
                             child: ElevatedButton.icon(
-                              onPressed: () {},
+                              onPressed: () => _handleDeleteProperty(property.id),
                               icon: const Icon(Icons.delete, size: 16),
                               label: const Text('Delete'),
                               style: ElevatedButton.styleFrom(
@@ -451,6 +469,79 @@ class LandlordHomeScreen extends GetView<LandlordController> {
         },
       );
     });
+  }
+
+  Future<void> _handleDeleteProperty(String propertyId) async {
+    // Show confirmation dialog
+    final confirmed = await Get.dialog<bool>(
+      AlertDialog(
+        title: const Text('Delete Property'),
+        content: const Text('Are you sure you want to delete this property? This action cannot be undone.'),
+        actions: [
+          TextButton(
+            onPressed: () => Get.back(result: false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Get.back(result: true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFC0392B),
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    // Show loading
+    Get.dialog(
+      const Center(child: CircularProgressIndicator()),
+      barrierDismissible: false,
+    );
+
+    try {
+      final response = await ApiService().deleteProperty(int.parse(propertyId));
+
+      // Close loading dialog
+      Get.back();
+
+      if (response['success'] == true) {
+        Get.snackbar(
+          'Success',
+          response['message'] ?? 'Property deleted successfully',
+          backgroundColor: Colors.green,
+          colorText: Colors.white,
+          snackPosition: SnackPosition.BOTTOM,
+        );
+
+        // Refresh dashboard to update property list
+        await controller.fetchDashboardData();
+      } else {
+        Get.snackbar(
+          'Error',
+          response['message'] ?? 'Failed to delete property',
+          backgroundColor: Colors.red,
+          colorText: Colors.white,
+          snackPosition: SnackPosition.BOTTOM,
+        );
+      }
+    } catch (e) {
+      // Close loading dialog if still open
+      if (Get.isDialogOpen == true) {
+        Get.back();
+      }
+
+      Get.snackbar(
+        'Error',
+        'Failed to delete property: ${e.toString()}',
+        backgroundColor: Colors.red,
+        colorText: Colors.white,
+        snackPosition: SnackPosition.BOTTOM,
+      );
+    }
   }
 
   Widget _buildSpecItem(IconData icon, String text) {
