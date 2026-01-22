@@ -5,6 +5,8 @@ import 'package:house_renting/controllers/auth_controller.dart';
 import 'package:house_renting/widgets/custom_app_bar.dart';
 import 'package:house_renting/widgets/rental_application_dialog.dart';
 
+import 'package:house_renting/widgets/rent_calculation_dialog.dart';
+
 class PropertyDetailsScreen extends StatefulWidget {
   final Property property;
   const PropertyDetailsScreen({super.key, required this.property});
@@ -262,9 +264,14 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
                               ),
                               child: ElevatedButton.icon(
                                 onPressed: null, // Disabled
-                                icon: const Icon(Icons.block, color: Colors.grey),
+                                icon: const Icon(
+                                  Icons.block,
+                                  color: Colors.grey,
+                                ),
                                 label: Text(
-                                  property.rentedByMe ? 'Already Rented by You' : 'Not Available',
+                                  property.rentedByMe
+                                      ? 'Already Rented by You'
+                                      : 'Not Available',
                                   style: const TextStyle(color: Colors.grey),
                                 ),
                                 style: ElevatedButton.styleFrom(
@@ -280,7 +287,10 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
                               width: double.infinity,
                               decoration: BoxDecoration(
                                 gradient: const LinearGradient(
-                                  colors: [Color(0xFF5E60CE), Color(0xFF6930C3)],
+                                  colors: [
+                                    Color(0xFF5E60CE),
+                                    Color(0xFF6930C3),
+                                  ],
                                 ),
                                 borderRadius: BorderRadius.circular(8),
                               ),
@@ -290,9 +300,9 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
                                     context: context,
                                     builder: (context) =>
                                         RentalApplicationDialog(
-                                      propertyId: property.id,
-                                      property: property,
-                                    ),
+                                          propertyId: property.id,
+                                          property: property,
+                                        ),
                                   );
                                 },
                                 icon: const Icon(Icons.vpn_key),
@@ -308,7 +318,26 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
                           const SizedBox(height: 12),
                         ],
                         OutlinedButton.icon(
-                          onPressed: () {},
+                          onPressed: () {
+                            // Extract rent amount
+                            double rent = 0;
+                            try {
+                              String rentStr = property.price
+                                  .replaceAll('Tk ', '')
+                                  .replaceAll(',', '');
+                              rent = double.tryParse(rentStr) ?? 0;
+                            } catch (e) {
+                              print('Error parsing rent price: $e');
+                            }
+
+                            showDialog(
+                              context: context,
+                              builder: (context) => RentCalculationDialog(
+                                baseRent: rent,
+                                fees: property.fees,
+                              ),
+                            );
+                          },
                           icon: const Icon(Icons.calculate),
                           label: const Text('Calculate Total Rent'),
                           style: OutlinedButton.styleFrom(

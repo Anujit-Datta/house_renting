@@ -128,6 +128,24 @@ class AddPropertyController extends GetxController {
 
         // is_building for multi-unit properties
         'is_building': isMultiUnit.value,
+
+        // Utility Bills & Charges
+        if (electricityRateController.text.trim().isNotEmpty)
+          'electricity_rate': double.tryParse(electricityRateController.text.trim()) ?? 0.0,
+        if (meterRentController.text.trim().isNotEmpty)
+          'meter_rent': double.tryParse(meterRentController.text.trim()) ?? 0.0,
+        'has_water_bill': hasWaterBill.value,
+        if (hasWaterBill.value && waterBillController.text.trim().isNotEmpty)
+          'water_bill': double.tryParse(waterBillController.text.trim()) ?? 0.0,
+        'has_gas_bill': hasGasBill.value,
+        if (hasGasBill.value && gasBillController.text.trim().isNotEmpty)
+          'gas_bill': double.tryParse(gasBillController.text.trim()) ?? 0.0,
+        'has_service_charge': hasServiceCharge.value,
+        if (hasServiceCharge.value && serviceChargeController.text.trim().isNotEmpty)
+          'service_charge': double.tryParse(serviceChargeController.text.trim()) ?? 0.0,
+        'has_other_charges': hasOtherCharges.value,
+        if (hasOtherCharges.value && otherChargesController.text.trim().isNotEmpty)
+          'other_charges': double.tryParse(otherChargesController.text.trim()) ?? 0.0,
       };
 
       print('********** PROPERTY SUBMISSION DEBUG START **********');

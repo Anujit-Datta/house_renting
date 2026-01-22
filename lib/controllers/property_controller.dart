@@ -22,6 +22,7 @@ class Property {
   final String description;
   final Map<String, dynamic> owner;
   final Map<String, dynamic> details;
+  final Map<String, double> fees;
 
   Property({
     required this.id,
@@ -54,6 +55,12 @@ class Property {
       'Furnished': 'Yes',
       'Parking': 'Available',
       'Rental Type': 'Family',
+    },
+    this.fees = const {
+      'Electricity Rate': 15.0, // Tk per unit
+      'Gas Bill': 500.0,
+      'Water Bill': 500.0,
+      'Service Charge': 2000.0,
     },
   });
   factory Property.fromJson(Map<String, dynamic> json) {
@@ -109,8 +116,59 @@ class Property {
           json['favourited'] == 1 ||
           json['favourited'] == '1' ||
           json['favourited'] == 'true',
+      fees: _parseUtilityBills(json),
     );
   }
+
+  /// Parse utility bills from API response
+  static Map<String, double> _parseUtilityBills(Map<String, dynamic> json) {
+    final utilityBills = json['utility_bills'] as Map<String, dynamic>? ?? {};
+
+    final Map<String, double> fees = {};
+
+    // Parse electricity_rate
+    if (utilityBills['electricity_rate'] != null) {
+      fees['Electricity Rate'] =
+          double.tryParse(utilityBills['electricity_rate'].toString()) ?? 0.0;
+    }
+
+    // Parse meter_rent
+    if (utilityBills['meter_rent'] != null) {
+      fees['Meter Rent'] =
+          double.tryParse(utilityBills['meter_rent'].toString()) ?? 0.0;
+    }
+
+    // Parse water_bill
+    if (utilityBills['has_water_bill'] == true &&
+        utilityBills['water_bill'] != null) {
+      fees['Water Bill'] =
+          double.tryParse(utilityBills['water_bill'].toString()) ?? 0.0;
+    }
+
+    // Parse gas_bill
+    if (utilityBills['has_gas_bill'] == true &&
+        utilityBills['gas_bill'] != null) {
+      fees['Gas Bill'] =
+          double.tryParse(utilityBills['gas_bill'].toString()) ?? 0.0;
+    }
+
+    // Parse service_charge
+    if (utilityBills['has_service_charge'] == true &&
+        utilityBills['service_charge'] != null) {
+      fees['Service Charge'] =
+          double.tryParse(utilityBills['service_charge'].toString()) ?? 0.0;
+    }
+
+    // Parse other_charges
+    if (utilityBills['has_other_charges'] == true &&
+        utilityBills['other_charges'] != null) {
+      fees['Other Charges'] =
+          double.tryParse(utilityBills['other_charges'].toString()) ?? 0.0;
+    }
+
+    return fees;
+  }
+
   Property copyWith({
     String? id,
     String? title,
@@ -132,6 +190,7 @@ class Property {
     String? description,
     Map<String, dynamic>? owner,
     Map<String, dynamic>? details,
+    Map<String, double>? fees,
   }) {
     return Property(
       id: id ?? this.id,
@@ -154,6 +213,7 @@ class Property {
       description: description ?? this.description,
       owner: owner ?? this.owner,
       details: details ?? this.details,
+      fees: fees ?? this.fees,
     );
   }
 } // End of Property class

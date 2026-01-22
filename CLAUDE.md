@@ -1,13 +1,13 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+This file provides guidance to Claude Code (claude.ai/code) when working with this repository.
 
 ## Project Overview
 
 **Rentify** is a Flutter-based house renting mobile application with a multi-role authentication system (Tenant, Landlord, Admin). It connects to a Laravel REST API backend for property listings, rental requests, contracts, payments, messaging, and more.
 
 ### Technology Stack
-- **Framework**: Flutter (Dart SDK ^3.9.2)
+- **Framework**: Flutter (Dart SDK ^3.9.2) - **Installed via FVM** (Flutter Version Manager)
 - **State Management**: GetX ^4.7.3
 - **HTTP Client**: http ^1.6.0
 - **Storage**: shared_preferences ^2.5.4
@@ -18,46 +18,46 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Common Commands
 
-### Development
+### Development (Using FVM)
 ```bash
-# Install dependencies
-flutter pub get
+# Use FVM to run Flutter commands
+fvm flutter pub get
 
 # Run the app
-flutter run
+fvm flutter run
 
 # Run with hot reload
-flutter run --auto-selection
+fvm flutter run --auto-selection
 
 # Run on specific device
-flutter run -d <device_id>
+fvm flutter run -d <device_id>
 ```
 
 ### Build
 ```bash
 # Build Android APK
-flutter build apk
+fvm flutter build apk
 
 # Build Android App Bundle
-flutter build appbundle
+fvm flutter build appbundle
 
 # Build iOS
-flutter build ios
+fvm flutter build ios
 ```
 
 ### Code Quality
 ```bash
 # Run all tests
-flutter test
+fvm flutter test
 
 # Analyze code
-flutter analyze
+fvm flutter analyze
 
 # Format code
-flutter format .
+fvm flutter format .
 
 # Check for outdated dependencies
-flutter pub outdated
+fvm flutter pub outdated
 ```
 
 ---
@@ -226,7 +226,122 @@ class User {
 
 ## Development Guidelines
 
-### Adding a New Feature
+### Controller Initialization Pattern (CRITICAL)
+
+**NEVER initialize controllers in the `build()` method** - this causes infinite rebuilds and state loss:
+```dart
+// ❌ WRONG - Controller recreated on every rebuild
+@override
+Widget build(BuildContext context) {
+  final controller = Get.put(AddPropertyController());
+  return Scaffold(...);
+}
+
+// ✅ CORRECT - Initialize once in initState
+class _MyWidgetState extends State<MyWidget> {
+  late final MyController controller;
+
+  @override
+  void initState() {
+    super.initState();
+    controller = Get.put(MyController());
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(...);
+  }
+}
+```
+
+### Checkbox State Management
+
+Checkboxes MUST use individual RxBool observables (not controller-level aggregations):
+```dart
+// In controller
+final isBachelor = false.obs;
+final isFamily = false.obs;
+final isSublet = false.obs;
+final isCommercial = false.obs;
+
+// In screen - wrapped in Obx
+Obx(() => _buildCheckboxRow('Bachelor', controller.isBachelor))
+```
+
+**Don't use a single loading state** for multiple independent buttons - each button needs its own `RxBool` loading state.
+
+### Navigation After Logout
+
+**CRITICAL**: Reset controller state when logging out to prevent infinite loading:
+```dart
+Future<void> logout() async {
+  // Clear auth data
+  await prefs.remove('auth_token');
+
+  // Reset PropertyController state BEFORE navigation
+  if (Get.isRegistered<PropertyController>()) {
+    final propertyController = Get.find<PropertyController>();
+    propertyController.properties.clear();
+    propertyController.isLoading.value = false;
+    propertyController.errorMessage.value = '';
+  }
+
+  Get.offAll(() => const GuestHomeScreen());
+}
+```
+
+### Controllers Must Start With `isLoading = false`
+
+Never initialize controllers with `isLoading = true.obs` - this causes infinite loading indicators:
+```dart
+// ❌ WRONG
+final RxBool isLoading = true.obs;
+
+// ✅ CORRECT
+final RxBool isLoading = false.obs;
+```
+
+### Property ID Type Handling
+
+**Property.id is ALWAYS a String** from the API, but Laravel expects integers:
+```dart
+// From API response
+String propertyId = property.id;  // e.g., "123"
+
+// When calling delete/update APIs that expect int
+await ApiService().deleteProperty(int.parse(propertyId));
+```
+
+### Boolean Field Submission
+
+When sending boolean fields to Laravel, send them as booleans (not strings):
+```dart
+final propertyData = {
+  'parking': parkingAvailable.value,  // ✅ bool
+  'furnished': furnished.value,        // ✅ bool
+  'featured': isFeatured.value,        // ✅ bool
+  'available': propertyStatus.value == 'For Rent',  // ✅ bool
+};
+```
+
+Laravel validation expects `'field' => 'boolean'` for these fields.
+
+### Model Field Parsing - Available Checkbox
+
+The `available` field in Property.fromJson has a critical pattern - it does NOT default to true:
+```dart
+// ✅ CORRECT - Only true if explicitly true
+available: json['available'] == true || json['available'] == 1,
+
+// ❌ WRONG - This was causing issues
+available: json['available'] == true || json['available'] == 1 || json['available'] == null,
+```
+
+If the field is null in the database, it should be `false`, not `true`. This is important for edit dialogs that read from `widget.property.available`.
+
+---
+
+## Adding a New Feature
 
 1. **Add API method to ApiService** (`lib/services/api_service.dart`):
    ```dart
@@ -398,15 +513,91 @@ void main() {
 
 ---
 
+## Critical Bug Fixes (Recent Sessions)
+
+### Issue: Checkboxes Not Working in Add Property
+**Root Cause**: Controller initialized in `build()` method, recreating on every rebuild
+**Fix**: Move controller initialization to `initState()` with `late final` pattern
+**File**: `lib/screens/add_property_screen.dart`
+
+### Issue: Available Checkbox Always Checked in Edit Dialog
+**Root Cause**:
+1. Hardcoded default value `bool _available = true;`
+2. Not reading from `widget.property.available` in `initState()`
+3. Property.fromJson had `|| json['available'] == null` causing null to default to true
+**Fix**:
+- Use `late bool _available;` and initialize in `initState()`
+- Set `_available = widget.property.available;` in initState
+- Remove `|| json['available'] == null` from Property.fromJson
+**Files**: `lib/widgets/edit_property_dialog.dart`, `lib/controllers/property_controller.dart`
+
+### Issue: Featured Checkbox Not Being Submitted
+**Root Cause**: `'featured': isFeatured.value` was missing from propertyData map
+**Fix**: Add `'featured': isFeatured.value,` to submission data
+**File**: `lib/controllers/add_property_controller.dart`
+
+### Issue: Guest Page Infinite Loading After Logout
+**Root Cause**:
+1. PropertyController initialized with `isLoading = true.obs`
+2. Controller state not reset on logout
+3. GetX reusing same controller instance with corrupted state
+**Fix**:
+- Change to `isLoading = false.obs`
+- Reset controller state in AuthController.logout()
+**Files**: `lib/controllers/property_controller.dart`, `lib/controllers/auth_controller.dart`
+
+### Issue: Property Type Dropdown Always Shows "Apartment"
+**Root Cause**: API returns lowercase (e.g., "apartment") but dropdown compares to capitalized list
+**Fix**: Convert to lowercase before comparison, then capitalize for display
+**File**: `lib/widgets/edit_property_dialog.dart`
+
+---
+
+## Laravel Backend - Logging Patterns
+
+All Laravel API endpoints use comprehensive logging for debugging:
+- **Store (Create)**: Logs user info, request data, image uploads, success with featured/available/parking/furnished values
+- **Update**: Logs user info, property_id, request data, image updates
+- **Destroy (Delete)**: Logs user info, property_id, ownership checks, image deletions
+
+**Example from PropertyController.php**:
+```php
+\Log::info('Property creation request received', [
+    'user_id' => Auth::id(),
+    'user_email' => Auth::user()?->email,
+    'request_data' => $request->except(['image']),
+]);
+
+\Log::info('Property created successfully', [
+    'property_id' => $property->id,
+    'property_name' => $property->property_name,
+    'featured' => $property->featured ?? 'not set',
+    'available' => $property->available ?? 'not set',
+    'parking' => $property->parking ?? 'not set',
+    'furnished' => $property->furnished ?? 'not set',
+]);
+```
+
+Logs are stored in `storage/logs/laravel.log` and can be viewed with:
+```bash
+tail -f rentify_laravel/storage/logs/laravel.log
+```
+
+---
+
 ## Important: Implementation Status
 
 This is an ACTIVE project with ongoing development. See:
 - **IMPLEMENTATION_PLAN.md** - Full progress log, task lists
 - **FLUTTER_API_STATUS_ANALYSIS.md** - API implementation status (90+ methods)
 
-**Recent fixes** (Session 3):
-- RentalApplicationDialog now auto-fills user data and submits to API
-- PropertyDetailsScreen passes propertyId to dialog
+**Recent fixes** (Current Session):
+- Fixed controller initialization causing checkbox state loss
+- Fixed available/featured checkbox submission and display
+- Fixed guest page infinite loading after logout
+- Implemented delete property functionality
+- Fixed property type dropdown not reading backend value
+- Added comprehensive Laravel logging for debugging
 
 **Remaining high-priority tasks**:
 - Create ForgotPasswordScreen
