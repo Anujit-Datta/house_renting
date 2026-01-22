@@ -5,8 +5,8 @@ import 'package:house_renting/screens/auth_screen.dart';
 import 'package:house_renting/widgets/property_card.dart';
 import 'package:house_renting/screens/contact_screen.dart';
 import 'package:house_renting/screens/services_screen.dart';
-
 import 'package:house_renting/widgets/custom_app_bar.dart';
+import 'package:house_renting/widgets/category_selector.dart';
 
 class GuestHomeScreen extends StatefulWidget {
   const GuestHomeScreen({super.key});
@@ -248,28 +248,8 @@ class _GuestHomeScreenState extends State<GuestHomeScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Filter Chips Row
-        SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-          child: Row(
-            children: [
-              _buildFilterChip(
-                'All Properties',
-                isSelected: true,
-                icon: Icons.grid_view,
-              ),
-              _buildFilterChip('Available', icon: Icons.check_circle),
-              _buildFilterChip('Buildings', icon: Icons.apartment),
-              _buildFilterChip('Single Units', icon: Icons.home),
-              _buildFilterChip('Family', icon: Icons.people),
-              _buildFilterChip('Bachelor', icon: Icons.person),
-              _buildFilterChip('Sublet', icon: Icons.door_front_door),
-              _buildFilterChip('Commercial', icon: Icons.business_center),
-              _buildFilterChip('Roommate', icon: Icons.group),
-            ],
-          ),
-        ),
+        // Category Selector - Horizontally Scrollable
+        const CategorySelector(),
 
         // Sort Row
         Padding(
@@ -389,51 +369,6 @@ class _GuestHomeScreenState extends State<GuestHomeScreen> {
           ),
         ),
       ],
-    );
-  }
-
-  Widget _buildFilterChip(
-    String label, {
-    bool isSelected = false,
-    IconData? icon,
-  }) {
-    return Container(
-      margin: const EdgeInsets.only(right: 8),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: () {},
-          borderRadius: BorderRadius.circular(6),
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-            decoration: BoxDecoration(
-              color: isSelected ? const Color(0xFF2C3E50) : Colors.white,
-              borderRadius: BorderRadius.circular(6),
-              border: Border.all(color: Colors.grey.shade300),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                if (icon != null) ...[
-                  Icon(
-                    icon,
-                    size: 18,
-                    color: isSelected ? Colors.white : Colors.grey[600],
-                  ),
-                  const SizedBox(width: 8),
-                ],
-                Text(
-                  label,
-                  style: TextStyle(
-                    color: isSelected ? Colors.white : Colors.grey[700],
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
     );
   }
 }

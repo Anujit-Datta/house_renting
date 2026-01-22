@@ -232,6 +232,7 @@ class PropertyController extends GetxController {
   final RxInt filterBedrooms = 0.obs;
   final RxDouble filterMinRent = 0.0.obs;
   final RxDouble filterMaxRent = 0.0.obs;
+  final RxString filterSearch = ''.obs; // Search query
 
   @override
   void onInit() {
@@ -245,6 +246,17 @@ class PropertyController extends GetxController {
       isLoading(true);
       errorMessage('');
 
+      // Debug: Print current filter values
+      print('********** FETCH PROPERTIES DEBUG **********');
+      print('filterLocation: ${filterLocation.value}');
+      print('filterPropertyType: ${filterPropertyType.value}');
+      print('filterRentalType: ${filterRentalType.value}');
+      print('filterBedrooms: ${filterBedrooms.value}');
+      print('filterMinRent: ${filterMinRent.value}');
+      print('filterMaxRent: ${filterMaxRent.value}');
+      print('filterSearch: ${filterSearch.value}');
+      print('**********************************************');
+
       final fetchedProperties = await PropertyService().getProperties(
         location: filterLocation.value,
         propertyType: filterPropertyType.value,
@@ -252,6 +264,7 @@ class PropertyController extends GetxController {
         bedrooms: filterBedrooms.value,
         minRent: filterMinRent.value > 0 ? filterMinRent.value : null,
         maxRent: filterMaxRent.value > 0 ? filterMaxRent.value : null,
+        search: filterSearch.value.trim().isNotEmpty ? filterSearch.value : null,
       );
 
       properties.assignAll(fetchedProperties);
@@ -270,6 +283,7 @@ class PropertyController extends GetxController {
     int? bedrooms,
     double? minRent,
     double? maxRent,
+    String? search,
   }) {
     if (location != null) filterLocation.value = location;
     if (propertyType != null) filterPropertyType.value = propertyType;
@@ -277,17 +291,19 @@ class PropertyController extends GetxController {
     if (bedrooms != null) filterBedrooms.value = bedrooms;
     if (minRent != null) filterMinRent.value = minRent;
     if (maxRent != null) filterMaxRent.value = maxRent;
+    if (search != null) filterSearch.value = search;
 
     fetchProperties();
   }
 
-  void clearFilters() {
+  void clearFilters({bool clearSearch = false}) {
     filterLocation.value = 'Any';
     filterPropertyType.value = 'Any';
     filterRentalType.value = 'Any';
     filterBedrooms.value = 0;
     filterMinRent.value = 0.0;
     filterMaxRent.value = 0.0;
+    if (clearSearch) filterSearch.value = '';
     fetchProperties();
   }
 

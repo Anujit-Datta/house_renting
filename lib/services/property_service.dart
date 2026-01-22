@@ -32,6 +32,7 @@ class PropertyService {
     int? bedrooms,
     String? rentalType,
     String? propertyType,
+    String? search,
   }) async {
     try {
       print('********** PROPERTY FETCH DEBUG START **********');
@@ -43,10 +44,12 @@ class PropertyService {
       if (maxRent != null) queryParams['max_rent'] = maxRent.toString();
       if (bedrooms != null && bedrooms > 0)
         queryParams['bedrooms'] = bedrooms.toString();
-      if (rentalType != null && rentalType != 'Any')
+      if (rentalType != null && rentalType != 'Any' && rentalType != 'all')
         queryParams['rental_type'] = rentalType.toLowerCase();
       if (propertyType != null && propertyType != 'Any')
         queryParams['property_type'] = propertyType;
+      if (search != null && search.trim().isNotEmpty)
+        queryParams['search'] = search.trim();
 
       final uri = Uri.parse(
         ApiConstants.propertiesEndpoint,

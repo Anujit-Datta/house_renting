@@ -7,6 +7,7 @@ import 'package:house_renting/screens/guest_home_screen.dart';
 import 'package:house_renting/widgets/advanced_filters_dialog.dart';
 import 'package:house_renting/widgets/custom_app_bar.dart';
 import 'package:house_renting/widgets/property_card.dart';
+import 'package:house_renting/widgets/category_selector.dart';
 import 'package:house_renting/screens/tenant/my_rentals_screen.dart';
 import 'package:house_renting/screens/tenant/wallet_screen.dart';
 import 'package:house_renting/screens/tenant/pay_rent_screen.dart';
@@ -21,6 +22,14 @@ class TenantHomeScreen extends StatefulWidget {
 
 class _TenantHomeScreenState extends State<TenantHomeScreen> {
   // Navigation State
+  final TextEditingController _searchController = TextEditingController();
+  final PropertyController _propertyController = Get.find<PropertyController>();
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -235,293 +244,274 @@ class _TenantHomeScreenState extends State<TenantHomeScreen> {
               child: SingleChildScrollView(
                 physics: const AlwaysScrollableScrollPhysics(),
                 padding: const EdgeInsets.all(24),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Categories Row
-                  SizedBox(
-                    height: 155, // Reduced height to reduce lower space
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment
-                          .stretch, // Ensure all cards stretch to fill height
-                      children: [
-                        Expanded(
-                          child: GestureDetector(
-                            onTap: () {
-                              Get.find<PropertyController>().clearFilters();
-                              Get.find<PropertyController>().updateFilters(
-                                rentalType: 'family',
-                              );
-                            },
-                            child: _buildCategoryCard(
-                              context,
-                              'Family',
-                              'Families & long-term stay',
-                              Icons.people_alt,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: GestureDetector(
-                            onTap: () {
-                              Get.find<PropertyController>().clearFilters();
-                              Get.find<PropertyController>().updateFilters(
-                                rentalType: 'sublet',
-                              );
-                            },
-                            child: _buildCategoryCard(
-                              context,
-                              'Sublet',
-                              'Shared spaces & rooms',
-                              Icons.group,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: GestureDetector(
-                            onTap: () {
-                              Get.find<PropertyController>().clearFilters();
-                              Get.find<PropertyController>().updateFilters(
-                                rentalType: 'commercial',
-                              );
-                            },
-                            child: _buildCategoryCard(
-                              context,
-                              'Commercial',
-                              'Offices & business spaces',
-                              Icons.business,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 32),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Categories Row - Horizontally Scrollable
+                    const CategorySelector(),
+                    const SizedBox(height: 32),
 
-                  // Search & Filters
-                  Container(
-                    padding: const EdgeInsets.all(24),
-                    decoration: BoxDecoration(
-                      color: Theme.of(context).cardColor,
-                      borderRadius: BorderRadius.circular(16),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.05),
-                          blurRadius: 10,
-                          offset: const Offset(0, 4),
-                        ),
-                      ],
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Find Your Perfect Home',
-                          style: TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold,
-                            color: Theme.of(context).textTheme.bodyLarge?.color,
+                    // Search & Filters
+                    Container(
+                      padding: const EdgeInsets.all(24),
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).cardColor,
+                        borderRadius: BorderRadius.circular(16),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.05),
+                            blurRadius: 10,
+                            offset: const Offset(0, 4),
                           ),
-                        ),
-                        const SizedBox(height: 16),
-                        Row(
-                          children: [
-                            // Search Bar
-                            Expanded(
-                              child: TextField(
-                                decoration: InputDecoration(
-                                  hintText:
-                                      'Search by property name, location, or description...',
-                                  prefixIcon: const Icon(
-                                    Icons.search,
-                                    color: Colors.grey,
-                                  ),
-                                  border: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(8),
-                                    borderSide: BorderSide
-                                        .none, // Or grey border depending on theme
-                                  ),
-                                  filled: true,
-                                  fillColor: Theme.of(
-                                    context,
-                                  ).scaffoldBackgroundColor, // Slight contrast
-                                  contentPadding: const EdgeInsets.symmetric(
-                                    horizontal: 16,
-                                    vertical: 14,
-                                  ),
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: 16),
-                            // Search Button
-                            Container(
-                              decoration: BoxDecoration(
-                                color: const Color(0xFF2C3E50), // Dark Blue
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: IconButton(
-                                icon: const Icon(
-                                  Icons.arrow_forward,
-                                  color: Colors.white,
-                                ),
-                                onPressed: () {},
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 16),
-                        // Advanced Filters Button (Moved to next line)
-                        SizedBox(
-                          width: double.infinity, // Full width for better UX
-                          child: OutlinedButton.icon(
-                            onPressed: () async {
-                              final controller = Get.find<PropertyController>();
-                              final result =
-                                  await showDialog<Map<String, dynamic>>(
-                                    context: context,
-                                    builder: (context) => AdvancedFiltersDialog(
-                                      location: controller.filterLocation.value,
-                                      propertyType:
-                                          controller.filterPropertyType.value,
-                                      bedrooms: controller.filterBedrooms.value,
-                                      minRent: controller.filterMinRent.value,
-                                      maxRent: controller.filterMaxRent.value,
-                                    ),
-                                  );
-
-                              if (result != null) {
-                                Get.find<PropertyController>().updateFilters(
-                                  location: result['location'],
-                                  propertyType: result['propertyType'],
-                                  bedrooms: result['bedrooms'],
-                                  minRent: result['minRent'],
-                                  maxRent: result['maxRent'],
-                                );
-                              }
-                            },
-                            icon: Icon(
-                              Icons.tune,
-                              size: 18,
+                        ],
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Find Your Perfect Home',
+                            style: TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
                               color: Theme.of(
                                 context,
                               ).textTheme.bodyLarge?.color,
                             ),
-                            label: Text(
-                              'Advanced Filters',
-                              style: TextStyle(
+                          ),
+                          const SizedBox(height: 16),
+                          Row(
+                            children: [
+                              // Search Bar
+                              Expanded(
+                                child: ValueListenableBuilder(
+                                  valueListenable: _searchController,
+                                  builder: (context, TextEditingValue value, child) {
+                                    return TextField(
+                                      controller: _searchController,
+                                      onSubmitted: (searchValue) {
+                                        // Trigger search when user presses Enter
+                                        _propertyController.updateFilters(search: searchValue);
+                                      },
+                                      decoration: InputDecoration(
+                                        hintText:
+                                            'Search by property name, location, or description...',
+                                        prefixIcon: const Icon(
+                                          Icons.search,
+                                          color: Colors.grey,
+                                        ),
+                                        suffixIcon: value.text.isNotEmpty
+                                            ? IconButton(
+                                                icon: const Icon(
+                                                  Icons.clear,
+                                                  color: Colors.grey,
+                                                ),
+                                                onPressed: () {
+                                                  _searchController.clear();
+                                                  _propertyController.updateFilters(search: '');
+                                                },
+                                              )
+                                            : null,
+                                        border: OutlineInputBorder(
+                                          borderRadius: BorderRadius.circular(8),
+                                          borderSide: BorderSide
+                                              .none, // Or grey border depending on theme
+                                        ),
+                                        filled: true,
+                                        fillColor: Theme.of(
+                                          context,
+                                        ).scaffoldBackgroundColor, // Slight contrast
+                                        contentPadding: const EdgeInsets.symmetric(
+                                          horizontal: 16,
+                                          vertical: 14,
+                                        ),
+                                      ),
+                                    );
+                                  },
+                                ),
+                              ),
+                              const SizedBox(width: 16),
+                              // Search Button
+                              Container(
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFFF7F50), // Coral color
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: IconButton(
+                                  icon: const Icon(
+                                    Icons.search,
+                                    color: Colors.white,
+                                  ),
+                                  onPressed: () {
+                                    // Trigger search when button is pressed
+                                    _propertyController.updateFilters(
+                                      search: _searchController.text,
+                                    );
+                                  },
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 16),
+                          // Advanced Filters Button (Moved to next line)
+                          SizedBox(
+                            width: double.infinity, // Full width for better UX
+                            child: OutlinedButton.icon(
+                              onPressed: () async {
+                                final controller =
+                                    Get.find<PropertyController>();
+                                final result =
+                                    await showDialog<Map<String, dynamic>>(
+                                      context: context,
+                                      builder: (context) =>
+                                          AdvancedFiltersDialog(
+                                            location:
+                                                controller.filterLocation.value,
+                                            propertyType: controller
+                                                .filterPropertyType
+                                                .value,
+                                            bedrooms:
+                                                controller.filterBedrooms.value,
+                                            minRent:
+                                                controller.filterMinRent.value,
+                                            maxRent:
+                                                controller.filterMaxRent.value,
+                                          ),
+                                    );
+
+                                if (result != null) {
+                                  Get.find<PropertyController>().updateFilters(
+                                    location: result['location'],
+                                    propertyType: result['propertyType'],
+                                    bedrooms: result['bedrooms'],
+                                    minRent: result['minRent'],
+                                    maxRent: result['maxRent'],
+                                  );
+                                }
+                              },
+                              icon: Icon(
+                                Icons.tune,
+                                size: 18,
                                 color: Theme.of(
                                   context,
                                 ).textTheme.bodyLarge?.color,
                               ),
+                              label: Text(
+                                'Advanced Filters',
+                                style: TextStyle(
+                                  color: Theme.of(
+                                    context,
+                                  ).textTheme.bodyLarge?.color,
+                                ),
+                              ),
+                              style: OutlinedButton.styleFrom(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 16,
+                                  vertical: 18,
+                                ),
+                                side: BorderSide(
+                                  color: Colors.grey.withOpacity(0.3),
+                                ),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                alignment: Alignment
+                                    .centerLeft, // Align text/icon left
+                              ),
                             ),
-                            style: OutlinedButton.styleFrom(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 16,
-                                vertical: 18,
-                              ),
-                              side: BorderSide(
-                                color: Colors.grey.withOpacity(0.3),
-                              ),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              alignment:
-                                  Alignment.centerLeft, // Align text/icon left
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 32),
-
-                  // Listings Header
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        '3 Family Properties Found',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: Theme.of(context).textTheme.bodyLarge?.color,
-                        ),
-                      ),
-                      Row(
-                        children: [
-                          IconButton(
-                            icon: const Icon(Icons.grid_view),
-                            onPressed: () {},
-                          ),
-                          IconButton(
-                            icon: const Icon(Icons.list),
-                            onPressed: () {},
                           ),
                         ],
                       ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
+                    ),
+                    const SizedBox(height: 32),
 
-                  // Listings Grid
-                  GetX<PropertyController>(
-                    init: PropertyController(),
-                    builder: (controller) {
-                      if (controller.isLoading.value) {
-                        return const Center(child: CircularProgressIndicator());
-                      }
-                      if (controller.errorMessage.isNotEmpty) {
-                        return Center(
-                          child: Text(
-                            'Error: ${controller.errorMessage.value}',
-                            style: const TextStyle(color: Colors.red),
+                    // Listings Header
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          'Properties',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: Theme.of(context).textTheme.bodyLarge?.color,
                           ),
-                        );
-                      }
-                      if (controller.properties.isEmpty) {
-                        return const Center(
-                          child: Text('No properties found.'),
-                        );
-                      }
+                        ),
+                        Row(
+                          children: [
+                            IconButton(
+                              icon: const Icon(Icons.grid_view),
+                              onPressed: () {},
+                            ),
+                            IconButton(
+                              icon: const Icon(Icons.list),
+                              onPressed: () {},
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
 
-                      return LayoutBuilder(
-                        builder: (context, constraints) {
-                          int crossAxisCount = 1;
-                          if (constraints.maxWidth > 700) crossAxisCount = 2;
-                          if (constraints.maxWidth > 1100) crossAxisCount = 3;
-
-                          // Calculate Card Width
-                          double spacing = 20;
-                          double totalSpacing = spacing * (crossAxisCount - 1);
-                          double cardWidth =
-                              (constraints.maxWidth - totalSpacing) /
-                              crossAxisCount;
-
-                          return Wrap(
-                            spacing: spacing,
-                            runSpacing: spacing,
-                            children: controller.properties.map((property) {
-                              return SizedBox(
-                                width: cardWidth,
-                                child: PropertyCard(
-                                  property: property,
-                                  isFavVisible: true,
-                                  onPressFav: () {
-                                    controller.toggleFavorite(property);
-                                  },
-                                ),
-                              );
-                            }).toList(),
+                    // Listings Grid
+                    GetX<PropertyController>(
+                      init: PropertyController(),
+                      builder: (controller) {
+                        if (controller.isLoading.value) {
+                          return const Center(
+                            child: CircularProgressIndicator(),
                           );
-                        },
-                      );
-                    },
-                  ),
-                ],
+                        }
+                        if (controller.errorMessage.isNotEmpty) {
+                          return Center(
+                            child: Text(
+                              'Error: ${controller.errorMessage.value}',
+                              style: const TextStyle(color: Colors.red),
+                            ),
+                          );
+                        }
+                        if (controller.properties.isEmpty) {
+                          return const Center(
+                            child: Text('No properties found.'),
+                          );
+                        }
+
+                        return LayoutBuilder(
+                          builder: (context, constraints) {
+                            int crossAxisCount = 1;
+                            if (constraints.maxWidth > 700) crossAxisCount = 2;
+                            if (constraints.maxWidth > 1100) crossAxisCount = 3;
+
+                            // Calculate Card Width
+                            double spacing = 20;
+                            double totalSpacing =
+                                spacing * (crossAxisCount - 1);
+                            double cardWidth =
+                                (constraints.maxWidth - totalSpacing) /
+                                crossAxisCount;
+
+                            return Wrap(
+                              spacing: spacing,
+                              runSpacing: spacing,
+                              children: controller.properties.map((property) {
+                                return SizedBox(
+                                  width: cardWidth,
+                                  child: PropertyCard(
+                                    property: property,
+                                    isFavVisible: true,
+                                    onPressFav: () {
+                                      controller.toggleFavorite(property);
+                                    },
+                                  ),
+                                );
+                              }).toList(),
+                            );
+                          },
+                        );
+                      },
+                    ),
+                  ],
+                ),
               ),
-            ),
             ),
           ),
         ],
@@ -590,64 +580,6 @@ class _TenantHomeScreenState extends State<TenantHomeScreen> {
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
       hoverColor: Colors.grey.withOpacity(0.1),
-    );
-  }
-
-  Widget _buildCategoryCard(
-    BuildContext context,
-    String title,
-    String subtitle,
-    IconData icon,
-  ) {
-    return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: 8,
-        vertical: 12,
-      ), // Optimized padding
-      decoration: BoxDecoration(
-        color: title == 'Family'
-            ? const Color(0xFF2C3E50)
-            : Theme.of(context).cardColor, // Dark blue for active/first?
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Column(
-        children: [
-          Icon(
-            icon,
-            size: 32,
-            color: title == 'Family' ? Colors.white : Colors.black,
-          ),
-          const SizedBox(height: 8), // Reduced spacing
-          Text(
-            title,
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              fontSize:
-                  16, // Slightly reduced font size if needed, keeping 18 might be risky with wrapping. Let's try 18 but compact height.
-              fontWeight: FontWeight.bold,
-              color: title == 'Family'
-                  ? Colors.white
-                  : Theme.of(context).textTheme.bodyLarge?.color,
-            ),
-          ),
-          const SizedBox(height: 4), // Reduced spacing
-          Text(
-            subtitle,
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              fontSize: 11, // Slightly reduced font size
-              color: title == 'Family' ? Colors.white70 : Colors.grey,
-            ),
-          ),
-        ],
-      ),
     );
   }
 }

@@ -146,7 +146,7 @@ class _RentCalculationDialogState extends State<RentCalculationDialog> {
 
                 // Total
                 _buildRow(
-                  label: 'Total Monthly Payment',
+                  label: 'Total Rent/Month',
                   amount: totalAmount,
                   isBold: true,
                   isTotal: true,
